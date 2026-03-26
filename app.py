@@ -21,8 +21,10 @@ app = Flask(__name__)
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent
-DB_PATH = BASE_DIR / "insights.db"
-SETTINGS_PATH = BASE_DIR / "settings.json"
+# Use /tmp for database on cloud servers (Railway, etc.) which may have read-only filesystems
+IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("VERCEL"))
+DB_PATH = Path("/tmp/insights.db") if IS_CLOUD else BASE_DIR / "insights.db"
+SETTINGS_PATH = Path("/tmp/settings.json") if IS_CLOUD else BASE_DIR / "settings.json"
 
 # ── Default keyword lists for Tonic product attribution ───────────────────────
 DEFAULT_TEXTUAL_KEYWORDS = [
@@ -46,7 +48,7 @@ DEFAULT_FABRICATE_KEYWORDS = [
 
 
 # ── Settings helpers ───────────────────────────────────────────────────────────
-CREDENTIALS_PATH = BASE_DIR / "credentials.json"
+CREDENTIALS_PATH = Path("/tmp/credentials.json") if IS_CLOUD else BASE_DIR / "credentials.json"
 
 
 def load_settings():
@@ -66,8 +68,19 @@ def load_settings():
             saved = json.load(f)
         settings.update(saved)
 
-    # Load credentials separately
-    if CREDENTIALS_PATH.exists():
+    # Load credentials: environment variables take priority (used in production/Vercel),
+    # falling back to local credentials.json (used when running on your own computer)
+    env_gong_key = os.environ.get("GONG_ACCESS_KEY", "")
+    env_gong_secret = os.environ.get("GONG_ACCESS_SECRET", "")
+    env_anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+
+    if env_gong_key or env_gong_secret or env_anthropic_key:
+        # Running on Vercel or another server — use environment variables
+        settings["gong_access_key"] = env_gong_key
+        settings["gong_access_secret"] = env_gong_secret
+        settings["anthropic_api_key"] = env_anthropic_key
+    elif CREDENTIALS_PATH.exists():
+        # Running locally — use credentials.json saved via Settings page
         with open(CREDENTIALS_PATH) as f:
             creds = json.load(f)
         settings["gong_access_key"] = creds.get("gong_access_key", "")
@@ -320,6 +333,10 @@ def apply_keyword_attribution(insights, settings):
 
 
 # ── Flask routes ───────────────────────────────────────────────────────────────
+# Initialize database on startup regardless of how the app is launched
+init_db()
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
