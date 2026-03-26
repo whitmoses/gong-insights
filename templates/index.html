@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gong Insights — Tonic.ai</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --tonic-purple: #6B3FA0;
+      --tonic-purple-light: #8B5CC8;
+      --tonic-purple-pale: #F0E8FA;
+      --textual-color: #0D6EFD;
+      --fabricate-color: #198754;
+      --general-color: #6C757D;
+      --sidebar-width: 220px;
+    }
+    body { background: #F8F9FB; font-family: 'Segoe UI', system-ui, sans-serif; }
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-width); background: #1A1030;
+      display: flex; flex-direction: column; z-index: 100;
+    }
+    .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-logo .brand { color: #fff; font-size: 1.1rem; font-weight: 700; }
+    .sidebar-logo .sub { color: rgba(255,255,255,0.45); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .nav-link-side {
+      display: flex; align-items: center; gap: 10px;
+      color: rgba(255,255,255,0.6); padding: 10px 20px;
+      text-decoration: none; font-size: 0.88rem; transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-link-side:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    .nav-link-side.active { color: #fff; background: rgba(107,63,160,0.35); border-left-color: var(--tonic-purple-light); }
+    .nav-link-side i { font-size: 1rem; width: 18px; }
+    .main-content { margin-left: var(--sidebar-width); padding: 28px 32px; min-height: 100vh; }
+    .stat-card { background: #fff; border-radius: 12px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border: 1px solid #EAECF0; }
+    .stat-number { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .stat-label { font-size: 0.8rem; color: #6B7280; margin-top: 4px; }
+    .panel { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border: 1px solid #EAECF0; }
+    .panel-header { padding: 16px 20px; border-bottom: 1px solid #F0F0F0; font-weight: 600; font-size: 0.9rem; }
+    .panel-body { padding: 20px; }
+    .badge-textual { background: #EBF3FF; color: #0D6EFD; font-weight: 600; font-size: 0.72rem; }
+    .badge-fabricate { background: #EDFAF2; color: #198754; font-weight: 600; font-size: 0.72rem; }
+    .badge-general { background: #F0F0F2; color: #6C757D; font-weight: 600; font-size: 0.72rem; }
+    .badge-use_case { background: #FFF3CD; color: #856404; font-size: 0.72rem; }
+    .badge-job_to_be_done { background: #CCE5FF; color: #004085; font-size: 0.72rem; }
+    .badge-pain_point { background: #F8D7DA; color: #721C24; font-size: 0.72rem; }
+    .call-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #F3F4F6; transition: background 0.1s; cursor: pointer; }
+    .call-item:last-child { border-bottom: none; }
+    .call-item:hover { background: #F9FAFB; }
+    .call-item.selected { background: var(--tonic-purple-pale); }
+    .call-title { font-size: 0.88rem; font-weight: 500; color: #111; }
+    .call-meta { font-size: 0.76rem; color: #9CA3AF; margin-top: 2px; }
+    .analyzed-badge { font-size: 0.7rem; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 99px; white-space: nowrap; }
+    .insight-card { border-left: 4px solid #E5E7EB; padding: 12px 16px; margin-bottom: 10px; background: #fff; border-radius: 0 8px 8px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .insight-card.textual { border-left-color: #0D6EFD; }
+    .insight-card.fabricate { border-left-color: #198754; }
+    .insight-card.general { border-left-color: #9CA3AF; }
+    .insight-content { font-size: 0.875rem; color: #111; margin-bottom: 6px; }
+    .insight-quote { font-size: 0.78rem; color: #6B7280; font-style: italic; background: #F9FAFB; padding: 6px 10px; border-radius: 4px; margin-top: 6px; }
+    .progress-bar-tonic { background-color: var(--tonic-purple); }
+    .page { display: none; }
+    .page.active { display: block; }
+    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; }
+    .toast-msg { background: #1A1030; color: #fff; padding: 10px 18px; border-radius: 8px; margin-top: 8px; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; }
+    .toast-msg.show { opacity: 1; }
+    .toast-msg.success { border-left: 4px solid #22c55e; }
+    .toast-msg.error { border-left: 4px solid #ef4444; }
+    .filter-btn { font-size: 0.78rem; padding: 4px 12px; border-radius: 99px; }
+    .filter-btn.active { background: var(--tonic-purple); color: #fff; border-color: var(--tonic-purple); }
+    .empty-state { text-align: center; padding: 48px 24px; color: #9CA3AF; }
+    .empty-state i { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+    /* Credential status indicators */
+    .cred-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #F3F4F6; }
+    .cred-row:last-child { border-bottom: none; }
+    .cred-label { font-size: 0.85rem; font-weight: 500; }
+    .cred-key { font-size: 0.75rem; color: #9CA3AF; font-family: monospace; }
+    .cred-set { color: #22c55e; font-size: 0.8rem; }
+    .cred-missing { color: #ef4444; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">🔍 Gong Insights</div>
+    <div class="sub">Tonic.ai · Use Case Extractor</div>
+  </div>
+  <div style="padding: 12px 0; flex: 1;">
+    <a href="#" class="nav-link-side active" data-page="dashboard"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="#" class="nav-link-side" data-page="calls"><i class="bi bi-telephone-fill"></i> Calls</a>
+    <a href="#" class="nav-link-side" data-page="insights"><i class="bi bi-lightbulb-fill"></i> Insights</a>
+    <a href="#" class="nav-link-side" data-page="settings"><i class="bi bi-gear-fill"></i> Settings</a>
+  </div>
+  <div style="padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08);">
+    <div style="font-size: 0.72rem; color: rgba(255,255,255,0.3);">Powered by Claude AI</div>
+  </div>
+</nav>
+
+<div class="main-content">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <div>
+        <h4 class="mb-0 fw-bold">Dashboard</h4>
+        <div class="text-muted" style="font-size:0.82rem;">Overview of extracted customer insights</div>
+      </div>
+      <button class="btn btn-sm" style="background:var(--tonic-purple);color:#fff;" onclick="refreshDashboard()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+      </button>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number text-primary" id="stat-total">—</div><div class="stat-label">Total Insights</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--tonic-purple)" id="stat-calls">—</div><div class="stat-label">Calls Analyzed</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--textual-color)" id="stat-textual">—</div><div class="stat-label">Textual Insights</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--fabricate-color)" id="stat-fabricate">—</div><div class="stat-label">Fabricate Insights</div></div></div>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-5">
+        <div class="panel h-100">
+          <div class="panel-header">Insights by Type</div>
+          <div class="panel-body" id="type-breakdown"><div class="empty-state"><i class="bi bi-bar-chart"></i>No data yet</div></div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="panel h-100">
+          <div class="panel-header">Product Distribution</div>
+          <div class="panel-body" id="product-breakdown"><div class="empty-state"><i class="bi bi-pie-chart"></i>No data yet</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header d-flex justify-content-between align-items-center">
+        Recent Insights
+        <a href="#" style="font-size:0.78rem;color:#9CA3AF;" onclick="navTo('insights')">View all →</a>
+      </div>
+      <div class="panel-body p-0" id="recent-insights"><div class="empty-state"><i class="bi bi-lightbulb"></i>Analyze some calls to see insights here</div></div>
+    </div>
+  </div>
+
+  <!-- CALLS -->
+  <div id="page-calls" class="page">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <div><h4 class="mb-0">Gong Calls</h4><div class="text-muted" style="font-size:0.82rem;">Fetch and analyze customer calls</div></div>
+    </div>
+    <div class="panel mb-3">
+      <div class="panel-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-auto"><label class="form-label small mb-1">From</label><input type="date" id="calls-from" class="form-control form-control-sm" style="width:145px;"/></div>
+          <div class="col-auto"><label class="form-label small mb-1">To</label><input type="date" id="calls-to" class="form-control form-control-sm" style="width:145px;"/></div>
+          <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="fetchCalls()"><i class="bi bi-cloud-download me-1"></i>Fetch from Gong</button></div>
+          <div class="col-auto">
+            <button class="btn btn-sm" style="background:var(--tonic-purple);color:#fff;" onclick="analyzeSelected()" id="analyze-btn" disabled>
+              <i class="bi bi-cpu me-1"></i>Analyze Selected (<span id="selected-count">0</span>)
+            </button>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-outline-primary" onclick="selectAll()">Select All</button>
+            <button class="btn btn-sm btn-outline-secondary ms-1" onclick="selectNone()">None</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="analyze-progress" style="display:none;" class="mb-3">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        <span id="analyze-progress-text" style="font-size:0.82rem;">Analyzing...</span>
+      </div>
+      <div class="progress" style="height:6px;"><div class="progress-bar progress-bar-tonic" id="analyze-progress-bar" style="width:0%"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header d-flex justify-content-between">
+        <span>Calls <span id="calls-count" class="text-muted fw-normal" style="font-size:0.8rem;"></span></span>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" id="show-analyzed" onchange="filterCalls()">
+          <label class="form-check-label small" for="show-analyzed">Show analyzed only</label>
+        </div>
+      </div>
+      <div id="calls-list" style="max-height:520px;overflow-y:auto;"><div class="empty-state"><i class="bi bi-telephone"></i>Click "Fetch from Gong" to load calls</div></div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div id="page-insights" class="page">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <div><h4 class="mb-0">All Insights</h4><div class="text-muted" style="font-size:0.82rem;">Browse, filter, and export extracted insights</div></div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="exportInsights()"><i class="bi bi-download me-1"></i>Export CSV</button>
+    </div>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+      <span class="text-muted small me-1 align-self-center">Product:</span>
+      <button class="btn btn-outline-secondary filter-btn active" data-filter-product="" onclick="setFilter('product','')">All</button>
+      <button class="btn btn-outline-primary filter-btn" data-filter-product="Textual" onclick="setFilter('product','Textual')">Textual</button>
+      <button class="btn btn-outline-success filter-btn" data-filter-product="Fabricate" onclick="setFilter('product','Fabricate')">Fabricate</button>
+      <button class="btn btn-outline-secondary filter-btn" data-filter-product="General" onclick="setFilter('product','General')">General</button>
+      <span class="text-muted small ms-3 me-1 align-self-center">Type:</span>
+      <button class="btn btn-outline-secondary filter-btn active" data-filter-type="" onclick="setFilter('type','')">All</button>
+      <button class="btn btn-outline-warning filter-btn" data-filter-type="use_case" onclick="setFilter('type','use_case')">Use Cases</button>
+      <button class="btn btn-outline-info filter-btn" data-filter-type="job_to_be_done" onclick="setFilter('type','job_to_be_done')">Jobs to be Done</button>
+      <button class="btn btn-outline-danger filter-btn" data-filter-type="pain_point" onclick="setFilter('type','pain_point')">Pain Points</button>
+    </div>
+    <div class="mb-3"><input type="text" id="insights-search" class="form-control form-control-sm" placeholder="Search insights..." oninput="renderInsights()" style="max-width:340px;"/></div>
+    <div id="insights-list"><div class="empty-state"><i class="bi bi-lightbulb"></i>No insights yet — analyze some calls first</div></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="page-settings" class="page">
+    <div class="mb-4">
+      <h4 class="mb-0">Settings</h4>
+      <div class="text-muted" style="font-size:0.82rem;">Enter your API credentials and configure product keywords</div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+
+        <!-- Credentials -->
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-shield-lock me-2"></i>API Credentials</div>
+          <div class="panel-body">
+            <div class="alert alert-info py-2 px-3 mb-3" style="font-size:0.82rem;">
+              <i class="bi bi-info-circle me-1"></i>
+              Your credentials are saved securely on your computer and are never shared or sent anywhere except the respective APIs.
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Gong Access Key</label>
+              <input type="password" id="s-gong-key" class="form-control form-control-sm" placeholder="Enter your Gong access key"/>
+              <div class="form-text">Find this in Gong → Company Settings → API → Access Keys</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Gong Access Secret</label>
+              <input type="password" id="s-gong-secret" class="form-control form-control-sm" placeholder="Enter your Gong access secret"/>
+            </div>
+            <div class="mb-0">
+              <label class="form-label small fw-semibold">Anthropic API Key (for Claude AI)</label>
+              <input type="password" id="s-claude-key" class="form-control form-control-sm" placeholder="sk-ant-..."/>
+              <div class="form-text">Get yours at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys</div>
+            </div>
+            <div id="cred-status" class="mt-3 pt-3" style="border-top:1px solid #F3F4F6;"></div>
+          </div>
+        </div>
+
+        <!-- General config -->
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-sliders me-2"></i>General Config</div>
+          <div class="panel-body">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Gong Base URL</label>
+              <input type="text" id="s-gong-url" class="form-control form-control-sm" placeholder="https://api.gong.io"/>
+            </div>
+            <div>
+              <label class="form-label small fw-semibold">Default lookback (days)</label>
+              <input type="number" id="s-lookback" class="form-control form-control-sm" style="width:90px;" min="1" max="365"/>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="col-lg-6">
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-tags me-2"></i>Textual Keywords</div>
+          <div class="panel-body">
+            <textarea id="s-textual-kw" class="form-control form-control-sm" rows="7" style="font-size:0.78rem;font-family:monospace;"></textarea>
+            <div class="form-text">One keyword per line. Used to attribute insights to Tonic Textual.</div>
+          </div>
+        </div>
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-tags me-2"></i>Fabricate Keywords</div>
+          <div class="panel-body">
+            <textarea id="s-fabricate-kw" class="form-control form-control-sm" rows="7" style="font-size:0.78rem;font-family:monospace;"></textarea>
+            <div class="form-text">One keyword per line. Used to attribute insights to Tonic Fabricate.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-2">
+      <button class="btn" style="background:var(--tonic-purple);color:#fff;" onclick="saveSettings()">
+        <i class="bi bi-check-circle me-1"></i>Save Settings
+      </button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div id="toast-container"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+let allCalls = [], allInsights = [], selectedCallIds = new Set(), filters = { product: '', type: '' };
+
+function navTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link-side').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  if (page === 'dashboard') refreshDashboard();
+  if (page === 'insights') loadInsights();
+  if (page === 'settings') loadSettings();
+}
+document.querySelectorAll('.nav-link-side').forEach(a => a.addEventListener('click', e => { e.preventDefault(); navTo(a.dataset.page); }));
+
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast-msg ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.classList.add('show'), 50);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3500);
+}
+
+async function refreshDashboard() {
+  try {
+    const res = await fetch('/api/insights/summary');
+    const data = await res.json();
+    document.getElementById('stat-total').textContent = data.total_insights ?? 0;
+    document.getElementById('stat-calls').textContent = data.calls_analyzed ?? 0;
+    const textualCount = (data.by_product || []).find(p => p.product === 'Textual')?.count ?? 0;
+    const fabricateCount = (data.by_product || []).find(p => p.product === 'Fabricate')?.count ?? 0;
+    document.getElementById('stat-textual').textContent = textualCount;
+    document.getElementById('stat-fabricate').textContent = fabricateCount;
+
+    const typeEl = document.getElementById('type-breakdown');
+    if (!data.by_type?.length) {
+      typeEl.innerHTML = `<div class="empty-state"><i class="bi bi-bar-chart"></i>No data yet</div>`;
+    } else {
+      const total = data.total_insights || 1;
+      typeEl.innerHTML = data.by_type.map(t => {
+        const pct = Math.round((t.count / total) * 100);
+        const label = { use_case: 'Use Cases', job_to_be_done: 'Jobs to be Done', pain_point: 'Pain Points' }[t.insight_type] || t.insight_type;
+        const color = { use_case: '#F59E0B', job_to_be_done: '#3B82F6', pain_point: '#EF4444' }[t.insight_type] || '#9CA3AF';
+        return `<div class="mb-3"><div class="d-flex justify-content-between mb-1"><span style="font-size:0.82rem;">${label}</span><span style="font-size:0.82rem;color:#6B7280;">${t.count} (${pct}%)</span></div><div class="progress" style="height:8px;"><div class="progress-bar" style="width:${pct}%;background:${color};border-radius:99px;"></div></div></div>`;
+      }).join('');
+    }
+
+    const prodEl = document.getElementById('product-breakdown');
+    if (!data.by_product?.length) {
+      prodEl.innerHTML = `<div class="empty-state"><i class="bi bi-pie-chart"></i>No data yet</div>`;
+    } else {
+      const total = data.total_insights || 1;
+      prodEl.innerHTML = data.by_product.map(p => {
+        const pct = Math.round((p.count / total) * 100);
+        const color = { Textual: '#0D6EFD', Fabricate: '#198754', General: '#9CA3AF' }[p.product] || '#9CA3AF';
+        return `<div class="mb-3"><div class="d-flex justify-content-between mb-1"><span style="font-size:0.82rem;font-weight:500;">${p.product}</span><span style="font-size:0.82rem;color:#6B7280;">${p.count} (${pct}%)</span></div><div class="progress" style="height:10px;"><div class="progress-bar" style="width:${pct}%;background:${color};border-radius:99px;"></div></div></div>`;
+      }).join('');
+    }
+
+    const recentEl = document.getElementById('recent-insights');
+    if (!data.recent_insights?.length) {
+      recentEl.innerHTML = `<div class="empty-state"><i class="bi bi-lightbulb"></i>Analyze some calls to see insights here</div>`;
+    } else {
+      recentEl.innerHTML = data.recent_insights.map(i => insightCardHTML(i)).join('');
+    }
+  } catch(e) { toast('Failed to load dashboard', 'error'); }
+}
+
+function setDefaultDates() {
+  const today = new Date(), past = new Date();
+  past.setDate(today.getDate() - 30);
+  document.getElementById('calls-to').value = today.toISOString().split('T')[0];
+  document.getElementById('calls-from').value = past.toISOString().split('T')[0];
+}
+
+async function fetchCalls() {
+  const from = document.getElementById('calls-from').value;
+  const to = document.getElementById('calls-to').value;
+  const listEl = document.getElementById('calls-list');
+  listEl.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted small">Fetching calls from Gong...</div></div>`;
+  try {
+    let url = '/api/calls';
+    const params = new URLSearchParams();
+    if (from) params.append('from_date', from + 'T00:00:00Z');
+    if (to) params.append('to_date', to + 'T23:59:59Z');
+    if ([...params].length) url += '?' + params;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    allCalls = data.calls || [];
+    renderCallList();
+    toast(`Loaded ${allCalls.length} calls`);
+  } catch(e) {
+    listEl.innerHTML = `<div class="empty-state text-danger"><i class="bi bi-exclamation-circle"></i>${e.message}</div>`;
+    toast(e.message, 'error');
+  }
+}
+
+function filterCalls() { renderCallList(); }
+
+function renderCallList() {
+  const listEl = document.getElementById('calls-list');
+  const showAnalyzed = document.getElementById('show-analyzed').checked;
+  let calls = showAnalyzed ? allCalls.filter(c => c.analyzed) : allCalls;
+  document.getElementById('calls-count').textContent = `(${calls.length})`;
+  if (!calls.length) {
+    listEl.innerHTML = `<div class="empty-state"><i class="bi bi-telephone"></i>${allCalls.length ? 'No analyzed calls' : 'Click "Fetch from Gong" to load calls'}</div>`;
+    return;
+  }
+  listEl.innerHTML = calls.map(c => {
+    const selected = selectedCallIds.has(c.id);
+    const date = c.started ? new Date(c.started).toLocaleDateString() : '';
+    const dur = c.duration ? Math.round(c.duration / 60) + ' min' : '';
+    const parties = (c.parties || []).filter(Boolean).join(', ');
+    return `<div class="call-item ${selected ? 'selected' : ''}" onclick="toggleCall('${c.id}', this)">
+      <input type="checkbox" class="call-checkbox" ${selected ? 'checked' : ''} onclick="event.stopPropagation();toggleCall('${c.id}', this.closest('.call-item'))"/>
+      <div style="flex:1;min-width:0;"><div class="call-title">${c.title || 'Untitled Call'}</div><div class="call-meta">${[date,dur,parties].filter(Boolean).join(' · ')}</div></div>
+      ${c.analyzed ? `<span class="analyzed-badge"><i class="bi bi-check-circle-fill me-1"></i>Analyzed</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleCall(id, el) {
+  if (selectedCallIds.has(id)) { selectedCallIds.delete(id); el.classList.remove('selected'); el.querySelector('input').checked = false; }
+  else { selectedCallIds.add(id); el.classList.add('selected'); el.querySelector('input').checked = true; }
+  updateAnalyzeBtn();
+}
+function updateAnalyzeBtn() {
+  const n = selectedCallIds.size;
+  document.getElementById('selected-count').textContent = n;
+  document.getElementById('analyze-btn').disabled = n === 0;
+}
+function selectAll() { allCalls.forEach(c => selectedCallIds.add(c.id)); renderCallList(); updateAnalyzeBtn(); }
+function selectNone() { selectedCallIds.clear(); renderCallList(); updateAnalyzeBtn(); }
+
+async function analyzeSelected() {
+  const ids = [...selectedCallIds];
+  if (!ids.length) return;
+  const progressEl = document.getElementById('analyze-progress');
+  const progressBar = document.getElementById('analyze-progress-bar');
+  const progressText = document.getElementById('analyze-progress-text');
+  progressEl.style.display = 'block';
+  document.getElementById('analyze-btn').disabled = true;
+  let done = 0;
+  for (const id of ids) {
+    progressText.textContent = `Analyzing call ${done + 1} of ${ids.length}...`;
+    progressBar.style.width = (done / ids.length * 100) + '%';
+    try {
+      const res = await fetch(`/api/analyze/${id}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.error) toast(`Error: ${data.error}`, 'error');
+      else {
+        toast(`Extracted ${data.insights_extracted} insights`);
+        const call = allCalls.find(c => c.id === id);
+        if (call) call.analyzed = true;
+      }
+    } catch(e) { toast(`Failed: ${e.message}`, 'error'); }
+    done++;
+  }
+  progressBar.style.width = '100%';
+  progressText.textContent = `Done! Analyzed ${done} calls.`;
+  setTimeout(() => { progressEl.style.display = 'none'; }, 3000);
+  document.getElementById('analyze-btn').disabled = false;
+  renderCallList();
+}
+
+async function loadInsights() {
+  try {
+    let url = '/api/insights';
+    const params = new URLSearchParams();
+    if (filters.product) params.append('product', filters.product);
+    if (filters.type) params.append('type', filters.type);
+    if ([...params].length) url += '?' + params;
+    const res = await fetch(url);
+    const data = await res.json();
+    allInsights = data.insights || [];
+    renderInsights();
+  } catch(e) { toast('Failed to load insights', 'error'); }
+}
+
+function setFilter(dim, val) {
+  filters[dim] = val;
+  document.querySelectorAll(`[data-filter-${dim}]`).forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-filter-${dim}="${val}"]`).classList.add('active');
+  loadInsights();
+}
+
+function renderInsights() {
+  const search = document.getElementById('insights-search').value.toLowerCase();
+  const list = document.getElementById('insights-list');
+  let items = allInsights;
+  if (search) items = items.filter(i => i.content.toLowerCase().includes(search) || (i.raw_quote||'').toLowerCase().includes(search) || (i.call_title||'').toLowerCase().includes(search));
+  if (!items.length) { list.innerHTML = `<div class="empty-state"><i class="bi bi-lightbulb"></i>No insights found</div>`; return; }
+  list.innerHTML = items.map(i => insightCardHTML(i, true)).join('');
+}
+
+function insightCardHTML(i, showDelete = false) {
+  const productClass = (i.product || 'general').toLowerCase();
+  const typeLabel = { use_case: 'Use Case', job_to_be_done: 'Job to be Done', pain_point: 'Pain Point' }[i.insight_type] || i.insight_type;
+  const confColor = { high: '#22c55e', medium: '#F59E0B', low: '#9CA3AF' }[i.confidence] || '#9CA3AF';
+  const date = i.call_date ? new Date(i.call_date).toLocaleDateString() : '';
+  return `<div class="insight-card ${productClass}">
+    <div class="d-flex gap-2 align-items-start mb-1 flex-wrap">
+      <span class="badge badge-${productClass} rounded-pill">${i.product || 'General'}</span>
+      <span class="badge badge-${i.insight_type} rounded-pill">${typeLabel}</span>
+      <span style="font-size:0.7rem;color:${confColor};margin-left:auto;"><i class="bi bi-circle-fill" style="font-size:0.55rem;"></i> ${i.confidence||''} confidence</span>
+      ${showDelete ? `<button class="btn btn-link btn-sm p-0 text-danger ms-1" style="font-size:0.75rem;" onclick="deleteInsight(${i.id})"><i class="bi bi-trash3"></i></button>` : ''}
+    </div>
+    <div class="insight-content">${i.content}</div>
+    ${i.raw_quote ? `<div class="insight-quote">"${i.raw_quote}"</div>` : ''}
+    ${i.call_title ? `<div style="font-size:0.73rem;color:#9CA3AF;margin-top:6px;"><i class="bi bi-telephone me-1"></i>${i.call_title}${date ? ' · '+date : ''}</div>` : ''}
+  </div>`;
+}
+
+async function deleteInsight(id) {
+  if (!confirm('Delete this insight?')) return;
+  await fetch(`/api/insights/${id}`, { method: 'DELETE' });
+  toast('Insight deleted');
+  loadInsights();
+}
+
+function exportInsights() {
+  if (!allInsights.length) { toast('No insights to export', 'error'); return; }
+  const header = ['id','call_id','call_title','call_date','insight_type','content','product','confidence','raw_quote','created_at'];
+  const rows = allInsights.map(i => header.map(k => `"${(i[k]||'').toString().replace(/"/g,'""')}"`).join(','));
+  const csv = [header.join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = `tonic_insights_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  toast('Exported to CSV');
+}
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const s = await res.json();
+
+    // Show masked values in credential fields if already set
+    document.getElementById('s-gong-key').placeholder = s.gong_access_key_set ? s.gong_access_key : 'Enter your Gong access key';
+    document.getElementById('s-gong-secret').placeholder = s.gong_access_secret_set ? s.gong_access_secret : 'Enter your Gong access secret';
+    document.getElementById('s-claude-key').placeholder = s.anthropic_api_key_set ? s.anthropic_api_key : 'sk-ant-...';
+
+    // Show status indicators
+    const credEl = document.getElementById('cred-status');
+    const creds = [
+      { label: 'Gong Access Key', set: s.gong_access_key_set },
+      { label: 'Gong Access Secret', set: s.gong_access_secret_set },
+      { label: 'Anthropic API Key', set: s.anthropic_api_key_set },
+    ];
+    credEl.innerHTML = creds.map(c => `
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span style="font-size:0.8rem;color:#6B7280;">${c.label}</span>
+        ${c.set
+          ? `<span style="font-size:0.78rem;color:#22c55e;"><i class="bi bi-check-circle-fill me-1"></i>Saved</span>`
+          : `<span style="font-size:0.78rem;color:#9CA3AF;"><i class="bi bi-circle me-1"></i>Not set</span>`}
+      </div>`).join('');
+
+    document.getElementById('s-gong-url').value = s.gong_base_url || 'https://api.gong.io';
+    document.getElementById('s-lookback').value = s.lookback_days || 30;
+    document.getElementById('s-textual-kw').value = (s.textual_keywords || []).join('\n');
+    document.getElementById('s-fabricate-kw').value = (s.fabricate_keywords || []).join('\n');
+  } catch(e) { toast('Failed to load settings', 'error'); }
+}
+
+async function saveSettings() {
+  const payload = {
+    gong_base_url: document.getElementById('s-gong-url').value.trim() || 'https://api.gong.io',
+    lookback_days: parseInt(document.getElementById('s-lookback').value) || 30,
+    textual_keywords: document.getElementById('s-textual-kw').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    fabricate_keywords: document.getElementById('s-fabricate-kw').value.split('\n').map(s=>s.trim()).filter(Boolean),
+  };
+  // Only include credentials if the user actually typed something
+  const gongKey = document.getElementById('s-gong-key').value.trim();
+  const gongSecret = document.getElementById('s-gong-secret').value.trim();
+  const claudeKey = document.getElementById('s-claude-key').value.trim();
+  if (gongKey) payload.gong_access_key = gongKey;
+  if (gongSecret) payload.gong_access_secret = gongSecret;
+  if (claudeKey) payload.anthropic_api_key = claudeKey;
+
+  try {
+    const res = await fetch('/api/settings', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      toast('Settings saved!');
+      // Clear the credential fields and reload to show masked values
+      document.getElementById('s-gong-key').value = '';
+      document.getElementById('s-gong-secret').value = '';
+      document.getElementById('s-claude-key').value = '';
+      loadSettings();
+    } else toast('Error saving', 'error');
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+setDefaultDates();
+refreshDashboard();
+</script>
+</body>
+</html>
