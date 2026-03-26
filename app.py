@@ -14,10 +14,33 @@ import requests
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from functools import wraps
+from authlib.integrations.flask_client import OAuth
 import anthropic
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
+
+# ── Google OAuth ───────────────────────────────────────────────────────────────
+oauth = OAuth(app)
+google = oauth.register(
+    name="google",
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
+
+ALLOWED_DOMAIN = "tonic.ai"
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("authenticated"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent
@@ -367,12 +390,47 @@ def apply_keyword_attribution(insights, settings):
 init_db()
 
 
+@app.route("/login")
+def login():
+    return render_template("login.html")
+
+
+@app.route("/auth/google")
+def auth_google():
+    redirect_uri = url_for("auth_callback", _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+
+@app.route("/auth/callback")
+def auth_callback():
+    token = google.authorize_access_token()
+    user_info = token.get("userinfo") or google.userinfo()
+    email = (user_info.get("email") or "").lower()
+
+    if email.endswith(f"@{ALLOWED_DOMAIN}"):
+        session["authenticated"] = True
+        session["user_email"] = email
+        session["user_name"] = user_info.get("name", email)
+        return redirect(url_for("index"))
+    else:
+        session.clear()
+        return render_template("unauthorized.html", email=email)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
 
 @app.route("/api/settings", methods=["GET"])
+@login_required
 def get_settings():
     settings = load_settings()
     # Mask credentials — show a hint but never the full value
@@ -399,6 +457,7 @@ def get_settings():
 
 
 @app.route("/api/settings", methods=["POST"])
+@login_required
 def update_settings():
     data = request.json
     # Only accept non-sensitive settings via this route
@@ -407,6 +466,7 @@ def update_settings():
 
 
 @app.route("/api/calls", methods=["GET"])
+@login_required
 def get_calls():
     settings = load_settings()
     if not settings.get("gong_access_key") or not settings.get("gong_access_secret"):
@@ -460,6 +520,7 @@ def get_calls():
 
 
 @app.route("/api/analyze/<call_id>", methods=["POST"])
+@login_required
 def analyze_call(call_id):
     settings = load_settings()
     missing = []
@@ -520,6 +581,7 @@ def analyze_call(call_id):
 
 
 @app.route("/api/insights", methods=["GET"])
+@login_required
 def get_insights():
     product = request.args.get("product")
     insight_type = request.args.get("type")
@@ -546,6 +608,7 @@ def get_insights():
 
 
 @app.route("/api/insights/summary", methods=["GET"])
+@login_required
 def insights_summary():
     db = get_db()
     total = db.execute("SELECT COUNT(*) FROM insights").fetchone()[0]
@@ -564,6 +627,7 @@ def insights_summary():
 
 
 @app.route("/api/insights/<int:insight_id>", methods=["DELETE"])
+@login_required
 def delete_insight(insight_id):
     db = get_db()
     db.execute("DELETE FROM insights WHERE id=?", (insight_id,))
