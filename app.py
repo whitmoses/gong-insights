@@ -22,6 +22,10 @@ import anthropic
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
 
+# Fix for running behind Railway's HTTPS proxy — ensures redirect URIs use https://
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 # ── Google OAuth ───────────────────────────────────────────────────────────────
 oauth = OAuth(app)
 google = oauth.register(
@@ -397,7 +401,12 @@ def login():
 
 @app.route("/auth/google")
 def auth_google():
-    redirect_uri = url_for("auth_callback", _external=True)
+    # Use hardcoded redirect URI to avoid http/https mismatch behind Railway proxy
+    base = os.environ.get("APP_BASE_URL", "").rstrip("/")
+    if base:
+        redirect_uri = f"{base}/auth/callback"
+    else:
+        redirect_uri = url_for("auth_callback", _external=True, _scheme="https")
     return google.authorize_redirect(redirect_uri)
 
 
