@@ -38,6 +38,18 @@ DEFAULT_TEXTUAL_KEYWORDS = [
     "scanned documents", "e-fax", "image-based",
 ]
 
+DEFAULT_STRUCTURAL_KEYWORDS = [
+    "structural", "production-like", "test data", "provisioned", "provision",
+    "shift-left", "shift left", "testing environment", "test environment",
+    "compliant test data", "mirrors production", "production copy",
+    "production data", "staging data", "staging environment", "dev environment",
+    "database copy", "data refresh", "release cycles", "accelerate testing",
+    "subsetting", "subset", "data subsetting", "referential integrity",
+    "structured data", "relational", "database masking", "sql", "tables",
+    "schemas", "postgres", "mysql", "snowflake", "redshift", "mongodb",
+    "ci/cd", "pipeline", "shape of production", "complexity of production",
+]
+
 DEFAULT_FABRICATE_KEYWORDS = [
     "fabricate", "synthetic data", "generate data", "generated data",
     "fake data", "realistic data", "test data generation", "data generation",
@@ -56,6 +68,7 @@ def load_settings():
     settings = {
         "gong_base_url": "https://api.gong.io",
         "textual_keywords": DEFAULT_TEXTUAL_KEYWORDS,
+        "structural_keywords": DEFAULT_STRUCTURAL_KEYWORDS,
         "fabricate_keywords": DEFAULT_FABRICATE_KEYWORDS,
         "lookback_days": 30,
         "gong_access_key": "",
@@ -93,7 +106,7 @@ def load_settings():
 def save_settings(data):
     """Save non-sensitive settings to settings.json, credentials to credentials.json."""
     cred_keys = ["gong_access_key", "gong_access_secret", "anthropic_api_key"]
-    config_keys = ["textual_keywords", "fabricate_keywords", "lookback_days", "gong_base_url"]
+    config_keys = ["textual_keywords", "structural_keywords", "fabricate_keywords", "lookback_days", "gong_base_url"]
 
     # Save credentials separately
     if any(k in data for k in cred_keys):
@@ -228,25 +241,34 @@ def fetch_call_transcript(settings, call_id):
 # ── Claude AI extraction ───────────────────────────────────────────────────────
 EXTRACTION_PROMPT = """You are an expert product analyst for Tonic.ai, a company that makes data privacy and synthetic data tools.
 
-Tonic has two main products:
+Tonic has THREE products:
 
-- **Tonic Textual**: Masks, redacts, or de-identifies sensitive information in UNSTRUCTURED data — things like free-form text, clinical notes, PDFs, emails, scanned documents, RTF files, and chat logs. The data already exists and Textual makes it safe by removing or replacing PII. Also used for creating AI/LLM training datasets from real text data.
+- **Tonic Textual**: Masks, redacts, or de-identifies sensitive information in UNSTRUCTURED data — free-form text, clinical notes, PDFs, emails, scanned documents, RTF files, and chat logs. The data already exists and Textual makes it safe by removing or replacing PII. Also used for creating AI/LLM training datasets from real text data.
 
-- **Tonic Fabricate**: An AI agent that GENERATES brand new synthetic data from scratch — realistic fake data for any domain. Used for building, testing, and training without needing real data at all. Think: generating a fake but realistic database of patients, transactions, or users so developers can build and test safely. Fabricate creates data; it does NOT mask or de-identify existing data.
+- **Tonic Structural**: Takes REAL production data (structured/relational databases) and provisions a compliant, production-like copy for dev and test environments. It mirrors the shape and complexity of production data so engineers can test against realistic data. Used for shift-left testing, accelerating release cycles, subsetting databases, and maintaining referential integrity. The key: it starts with real production data and creates a safe, realistic copy.
 
-CRITICAL DISTINCTION — READ THIS CAREFULLY:
-- Textual = the customer has REAL data that contains PII and they want to make it safe. The action is: mask, redact, de-identify, anonymize, scrub, clean.
-- Fabricate = the customer wants to CREATE data that does not yet exist. The action is: generate, create, produce, synthesize, build fake data.
+- **Tonic Fabricate**: An AI agent that GENERATES completely NEW synthetic data from scratch — no real data needed. Used when a customer wants to create realistic fake data for any domain without starting from real production data. Fabricate creates data that never existed.
 
-THE MOST IMPORTANT RULE: If the words "de-identify", "mask", "redact", or "anonymize" appear anywhere near the insight, it is ALWAYS Textual — even if the data lives in Snowflake, a database, or any structured system. The type of storage does not matter. Only the action matters.
+CRITICAL DISTINCTIONS — READ CAREFULLY:
+
+1. TEXTUAL vs STRUCTURAL vs FABRICATE comes down to:
+   - What TYPE of data? Unstructured text/documents → Textual. Structured databases/tables → Structural or Fabricate.
+   - What ACTION? Mask/redact/de-identify existing data → Textual (even if it's in a database). Provision a production-like copy from real data → Structural. Generate brand new data from scratch → Fabricate.
+
+2. THE MOST IMPORTANT RULE: If the words "de-identify", "mask", "redact", or "anonymize" appear, it is ALWAYS Textual — regardless of whether the data is in a database, Snowflake, or any structured system.
+
+3. STRUCTURAL vs FABRICATE:
+   - Structural = customer has real production data and wants a safe, production-like copy for testing
+   - Fabricate = customer wants to generate new data that doesn't exist yet, with no real production data as input
 
 CONCRETE EXAMPLES:
-- "We need to de-identify patient records in Snowflake" → Textual (de-identifying = Textual, regardless of Snowflake)
-- "We need to mask demographics in our database" → Textual (masking = Textual)
-- "We need synthetic patient data for our dev environment" → Fabricate (generating new data = Fabricate)
-- "We need fake test data for our engineers" → Fabricate (creating new data = Fabricate)
-
-NEVER attribute de-identification, masking, or redaction to Fabricate under any circumstances.
+- "We need to de-identify patient records in Snowflake" → Textual
+- "We need to mask free-text notes in our EHR" → Textual
+- "We need production-like test data that mirrors our database" → Structural
+- "We need to provision compliant copies of our production DB for each dev" → Structural
+- "We need to accelerate our release cycles with better test data" → Structural
+- "We need synthetic patient data generated from scratch for our dev environment" → Fabricate
+- "We need fake test data with no connection to real customers" → Fabricate
 
 Analyze the following sales call transcript and extract:
 1. **Use Cases** - specific ways the customer wants to use a Tonic product
@@ -255,7 +277,7 @@ Analyze the following sales call transcript and extract:
 
 For each item you extract:
 - Classify it as: use_case, job_to_be_done, or pain_point
-- Attribute it to: Textual, Fabricate, or General (if it applies to both or neither)
+- Attribute it to: Textual, Structural, Fabricate, or General (if unclear)
 - Provide a confidence level: high, medium, or low
 - Include a short relevant quote from the transcript (max 50 words)
 
@@ -312,6 +334,7 @@ def extract_insights_with_claude(transcript, settings):
 
 def apply_keyword_attribution(insights, settings):
     textual_kw = [k.lower() for k in settings.get("textual_keywords", DEFAULT_TEXTUAL_KEYWORDS)]
+    structural_kw = [k.lower() for k in settings.get("structural_keywords", DEFAULT_STRUCTURAL_KEYWORDS)]
     fabricate_kw = [k.lower() for k in settings.get("fabricate_keywords", DEFAULT_FABRICATE_KEYWORDS)]
 
     for insight in insights:
@@ -320,12 +343,19 @@ def apply_keyword_attribution(insights, settings):
 
         content_lower = (insight.get("content", "") + " " + insight.get("quote", "")).lower()
         textual_hits = sum(1 for kw in textual_kw if kw in content_lower)
+        structural_hits = sum(1 for kw in structural_kw if kw in content_lower)
         fabricate_hits = sum(1 for kw in fabricate_kw if kw in content_lower)
 
-        if textual_hits > fabricate_hits:
+        best = max(textual_hits, structural_hits, fabricate_hits)
+        if best == 0:
+            continue
+        if textual_hits == best:
             insight["product"] = "Textual"
             insight["confidence"] = "medium"
-        elif fabricate_hits > textual_hits:
+        elif structural_hits == best:
+            insight["product"] = "Structural"
+            insight["confidence"] = "medium"
+        else:
             insight["product"] = "Fabricate"
             insight["confidence"] = "medium"
 
@@ -362,6 +392,7 @@ def get_settings():
         "anthropic_api_key_set": bool(settings.get("anthropic_api_key")),
         "gong_base_url": settings.get("gong_base_url", "https://api.gong.io"),
         "textual_keywords": settings.get("textual_keywords", DEFAULT_TEXTUAL_KEYWORDS),
+        "structural_keywords": settings.get("structural_keywords", DEFAULT_STRUCTURAL_KEYWORDS),
         "fabricate_keywords": settings.get("fabricate_keywords", DEFAULT_FABRICATE_KEYWORDS),
         "lookback_days": settings.get("lookback_days", 30),
     })
