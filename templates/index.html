@@ -12,6 +12,7 @@
       --tonic-purple-light: #8B5CC8;
       --tonic-purple-pale: #F0E8FA;
       --textual-color: #0D6EFD;
+      --structural-color: #D97706;
       --fabricate-color: #198754;
       --general-color: #6C757D;
       --sidebar-width: 220px;
@@ -42,6 +43,7 @@
     .panel-header { padding: 16px 20px; border-bottom: 1px solid #F0F0F0; font-weight: 600; font-size: 0.9rem; }
     .panel-body { padding: 20px; }
     .badge-textual { background: #EBF3FF; color: #0D6EFD; font-weight: 600; font-size: 0.72rem; }
+    .badge-structural { background: #FEF3C7; color: #D97706; font-weight: 600; font-size: 0.72rem; }
     .badge-fabricate { background: #EDFAF2; color: #198754; font-weight: 600; font-size: 0.72rem; }
     .badge-general { background: #F0F0F2; color: #6C757D; font-weight: 600; font-size: 0.72rem; }
     .badge-use_case { background: #FFF3CD; color: #856404; font-size: 0.72rem; }
@@ -56,6 +58,7 @@
     .analyzed-badge { font-size: 0.7rem; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 99px; white-space: nowrap; }
     .insight-card { border-left: 4px solid #E5E7EB; padding: 12px 16px; margin-bottom: 10px; background: #fff; border-radius: 0 8px 8px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
     .insight-card.textual { border-left-color: #0D6EFD; }
+    .insight-card.structural { border-left-color: #D97706; }
     .insight-card.fabricate { border-left-color: #198754; }
     .insight-card.general { border-left-color: #9CA3AF; }
     .insight-content { font-size: 0.875rem; color: #111; margin-bottom: 6px; }
@@ -113,9 +116,10 @@
       </button>
     </div>
     <div class="row g-3 mb-4">
-      <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number text-primary" id="stat-total">—</div><div class="stat-label">Total Insights</div></div></div>
-      <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--tonic-purple)" id="stat-calls">—</div><div class="stat-label">Calls Analyzed</div></div></div>
+      <div class="col-6 col-md-2"><div class="stat-card"><div class="stat-number text-primary" id="stat-total">—</div><div class="stat-label">Total Insights</div></div></div>
+      <div class="col-6 col-md-2"><div class="stat-card"><div class="stat-number" style="color:var(--tonic-purple)" id="stat-calls">—</div><div class="stat-label">Calls Analyzed</div></div></div>
       <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--textual-color)" id="stat-textual">—</div><div class="stat-label">Textual Insights</div></div></div>
+      <div class="col-6 col-md-2"><div class="stat-card"><div class="stat-number" style="color:var(--structural-color)" id="stat-structural">—</div><div class="stat-label">Structural Insights</div></div></div>
       <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-number" style="color:var(--fabricate-color)" id="stat-fabricate">—</div><div class="stat-label">Fabricate Insights</div></div></div>
     </div>
     <div class="row g-3 mb-4">
@@ -193,6 +197,7 @@
       <span class="text-muted small me-1 align-self-center">Product:</span>
       <button class="btn btn-outline-secondary filter-btn active" data-filter-product="" onclick="setFilter('product','')">All</button>
       <button class="btn btn-outline-primary filter-btn" data-filter-product="Textual" onclick="setFilter('product','Textual')">Textual</button>
+      <button class="btn btn-outline-warning filter-btn" data-filter-product="Structural" onclick="setFilter('product','Structural')">Structural</button>
       <button class="btn btn-outline-success filter-btn" data-filter-product="Fabricate" onclick="setFilter('product','Fabricate')">Fabricate</button>
       <button class="btn btn-outline-secondary filter-btn" data-filter-product="General" onclick="setFilter('product','General')">General</button>
       <span class="text-muted small ms-3 me-1 align-self-center">Type:</span>
@@ -259,16 +264,23 @@
       </div>
       <div class="col-lg-6">
         <div class="panel mb-3">
-          <div class="panel-header"><i class="bi bi-tags me-2"></i>Textual Keywords</div>
+          <div class="panel-header"><i class="bi bi-tags me-2" style="color:#0D6EFD;"></i>Textual Keywords</div>
           <div class="panel-body">
-            <textarea id="s-textual-kw" class="form-control form-control-sm" rows="7" style="font-size:0.78rem;font-family:monospace;"></textarea>
+            <textarea id="s-textual-kw" class="form-control form-control-sm" rows="6" style="font-size:0.78rem;font-family:monospace;"></textarea>
             <div class="form-text">One keyword per line. Used to attribute insights to Tonic Textual.</div>
           </div>
         </div>
         <div class="panel mb-3">
-          <div class="panel-header"><i class="bi bi-tags me-2"></i>Fabricate Keywords</div>
+          <div class="panel-header"><i class="bi bi-tags me-2" style="color:#D97706;"></i>Structural Keywords</div>
           <div class="panel-body">
-            <textarea id="s-fabricate-kw" class="form-control form-control-sm" rows="7" style="font-size:0.78rem;font-family:monospace;"></textarea>
+            <textarea id="s-structural-kw" class="form-control form-control-sm" rows="6" style="font-size:0.78rem;font-family:monospace;"></textarea>
+            <div class="form-text">One keyword per line. Used to attribute insights to Tonic Structural.</div>
+          </div>
+        </div>
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-tags me-2" style="color:#198754;"></i>Fabricate Keywords</div>
+          <div class="panel-body">
+            <textarea id="s-fabricate-kw" class="form-control form-control-sm" rows="6" style="font-size:0.78rem;font-family:monospace;"></textarea>
             <div class="form-text">One keyword per line. Used to attribute insights to Tonic Fabricate.</div>
           </div>
         </div>
@@ -316,8 +328,10 @@ async function refreshDashboard() {
     document.getElementById('stat-total').textContent = data.total_insights ?? 0;
     document.getElementById('stat-calls').textContent = data.calls_analyzed ?? 0;
     const textualCount = (data.by_product || []).find(p => p.product === 'Textual')?.count ?? 0;
+    const structuralCount = (data.by_product || []).find(p => p.product === 'Structural')?.count ?? 0;
     const fabricateCount = (data.by_product || []).find(p => p.product === 'Fabricate')?.count ?? 0;
     document.getElementById('stat-textual').textContent = textualCount;
+    document.getElementById('stat-structural').textContent = structuralCount;
     document.getElementById('stat-fabricate').textContent = fabricateCount;
 
     const typeEl = document.getElementById('type-breakdown');
@@ -340,7 +354,7 @@ async function refreshDashboard() {
       const total = data.total_insights || 1;
       prodEl.innerHTML = data.by_product.map(p => {
         const pct = Math.round((p.count / total) * 100);
-        const color = { Textual: '#0D6EFD', Fabricate: '#198754', General: '#9CA3AF' }[p.product] || '#9CA3AF';
+        const color = { Textual: '#0D6EFD', Structural: '#D97706', Fabricate: '#198754', General: '#9CA3AF' }[p.product] || '#9CA3AF';
         return `<div class="mb-3"><div class="d-flex justify-content-between mb-1"><span style="font-size:0.82rem;font-weight:500;">${p.product}</span><span style="font-size:0.82rem;color:#6B7280;">${p.count} (${pct}%)</span></div><div class="progress" style="height:10px;"><div class="progress-bar" style="width:${pct}%;background:${color};border-radius:99px;"></div></div></div>`;
       }).join('');
     }
@@ -547,6 +561,7 @@ async function loadSettings() {
     document.getElementById('s-gong-url').value = s.gong_base_url || 'https://api.gong.io';
     document.getElementById('s-lookback').value = s.lookback_days || 30;
     document.getElementById('s-textual-kw').value = (s.textual_keywords || []).join('\n');
+    document.getElementById('s-structural-kw').value = (s.structural_keywords || []).join('\n');
     document.getElementById('s-fabricate-kw').value = (s.fabricate_keywords || []).join('\n');
   } catch(e) { toast('Failed to load settings', 'error'); }
 }
@@ -556,6 +571,7 @@ async function saveSettings() {
     gong_base_url: document.getElementById('s-gong-url').value.trim() || 'https://api.gong.io',
     lookback_days: parseInt(document.getElementById('s-lookback').value) || 30,
     textual_keywords: document.getElementById('s-textual-kw').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    structural_keywords: document.getElementById('s-structural-kw').value.split('\n').map(s=>s.trim()).filter(Boolean),
     fabricate_keywords: document.getElementById('s-fabricate-kw').value.split('\n').map(s=>s.trim()).filter(Boolean),
   };
   // Only include credentials if the user actually typed something
