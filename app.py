@@ -229,6 +229,13 @@ def init_db():
                 created_at TEXT DEFAULT to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS')
             )
         """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS cache (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TEXT
+            )
+        """)
     else:
         c.execute("""
             CREATE TABLE IF NOT EXISTS calls (
@@ -256,6 +263,15 @@ def init_db():
                 FOREIGN KEY (call_id) REFERENCES calls(id)
             )
         """)
+
+    # Cache table for storing AI-generated cluster results
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS cache (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TEXT
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -758,6 +774,109 @@ def ranked_use_cases():
         "cross_product": cross_use_cases,
         "cross_product_call_count": len(cross_call_ids),
     })
+
+
+@app.route("/api/insights/cluster-use-cases", methods=["POST"])
+@login_required
+def cluster_use_cases():
+    """
+    Uses Claude to semantically cluster similar Textual use cases into themes,
+    then caches the result. Returns clustered use cases with total mention counts.
+    """
+    settings = load_settings()
+    if not settings.get("anthropic_api_key"):
+        return jsonify({"error": "Anthropic API key not configured"}), 400
+
+    db = get_db()
+
+    # Fetch all Textual use cases with their call counts
+    agg_fn = "STRING_AGG(DISTINCT call_title, ', ')" if USE_POSTGRES else "GROUP_CONCAT(DISTINCT call_title)"
+    rows = db.execute(f"""
+        SELECT content, COUNT(DISTINCT call_id) as call_count
+        FROM insights
+        WHERE product = 'Textual' AND insight_type = 'use_case'
+        GROUP BY content
+        ORDER BY call_count DESC
+    """).fetchall()
+
+    if not rows:
+        db.close()
+        return jsonify({"clusters": [], "cached": False})
+
+    use_cases = [{"content": r["content"], "count": r["call_count"]} for r in rows]
+
+    # Build prompt for Claude to cluster
+    use_case_list = "\n".join([f"- [{r['count']} mention(s)] {r['content']}" for r in use_cases])
+
+    cluster_prompt = f"""You are analyzing customer call data for Tonic Textual, a tool that masks PII in unstructured text.
+
+Below is a list of use cases extracted from customer calls, with mention counts in brackets.
+Group them into clusters where each cluster represents the same underlying use case scenario, even if worded differently.
+
+Use cases:
+{use_case_list}
+
+Return a JSON array of clusters. Each cluster should have:
+- "theme": a concise 3-8 word label for the use case theme
+- "total_mentions": the sum of all mention counts in this cluster
+- "examples": an array of up to 3 representative verbatim use case strings from the cluster
+
+Return ONLY valid JSON, no explanation. Example format:
+[
+  {{
+    "theme": "De-identification of clinical notes",
+    "total_mentions": 7,
+    "examples": ["Masking patient names in EHR free text", "De-identifying clinical notes before sharing"]
+  }}
+]"""
+
+    try:
+        client = anthropic.Anthropic(api_key=settings["anthropic_api_key"])
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": cluster_prompt}]
+        )
+        raw = message.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        clusters = json.loads(raw.strip())
+
+        # Sort by total_mentions descending
+        clusters.sort(key=lambda x: x.get("total_mentions", 0), reverse=True)
+
+        # Cache the result
+        cache_value = json.dumps(clusters)
+        db.execute(p("""
+            INSERT INTO cache (key, value, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+        """ if USE_POSTGRES else """
+            INSERT OR REPLACE INTO cache (key, value, updated_at) VALUES (?, ?, ?)
+        """), ("textual_clusters", cache_value, datetime.utcnow().isoformat()))
+        db.commit()
+        db.close()
+
+        return jsonify({"clusters": clusters, "cached": False, "updated_at": datetime.utcnow().isoformat()})
+
+    except Exception as e:
+        db.close()
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/insights/cluster-use-cases", methods=["GET"])
+@login_required
+def get_cached_clusters():
+    """Return the last cached cluster result."""
+    db = get_db()
+    row = db.execute(p("SELECT value, updated_at FROM cache WHERE key=?"), ("textual_clusters",)).fetchone()
+    db.close()
+    if not row:
+        return jsonify({"clusters": [], "updated_at": None})
+    return jsonify({"clusters": json.loads(row["value"]), "updated_at": row["updated_at"]})
 
 
 @app.route("/api/insights/<int:insight_id>", methods=["DELETE"])
