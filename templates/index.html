@@ -154,9 +154,11 @@
     <div class="row g-3 mt-1">
       <div class="col-md-6">
         <div class="panel h-100">
-          <div class="panel-header d-flex align-items-center gap-2">
-            <span class="badge-textual" style="background:#DBEAFE;color:#1D4ED8;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Textual</span>
-            Top Use Cases <span style="font-size:0.75rem;color:#9CA3AF;font-weight:400;margin-left:4px;">by frequency</span>
+          <div class="panel-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <span style="background:#DBEAFE;color:#1D4ED8;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Textual</span>
+              Top Use Cases <span style="font-size:0.75rem;color:#9CA3AF;font-weight:400;margin-left:4px;">by frequency</span>
+            </div>
           </div>
           <div class="panel-body p-0" id="textual-ranked-list">
             <div class="empty-state"><i class="bi bi-list-ol"></i>Analyze calls to see ranked use cases</div>
@@ -165,17 +167,38 @@
       </div>
       <div class="col-md-6">
         <div class="panel h-100">
-          <div class="panel-header d-flex align-items-center gap-2">
-            <span style="background:#DBEAFE;color:#1D4ED8;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Textual</span>
-            <span style="color:#9CA3AF;font-size:0.8rem;">+</span>
-            <span style="background:#DCFCE7;color:#15803D;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Fabricate</span>
-            Cross-Product Use Cases
+          <div class="panel-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <span style="background:#DBEAFE;color:#1D4ED8;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Textual</span>
+              <span style="color:#9CA3AF;font-size:0.8rem;">+</span>
+              <span style="background:#DCFCE7;color:#15803D;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Fabricate</span>
+              Cross-Product Use Cases
+            </div>
           </div>
           <div style="font-size:0.75rem;color:#9CA3AF;padding:6px 16px 0;" id="cross-product-subtitle"></div>
           <div class="panel-body p-0" id="cross-product-list">
             <div class="empty-state"><i class="bi bi-intersect"></i>Use cases spanning both products will appear here</div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- AI Clustered Use Cases -->
+    <div class="panel mt-3">
+      <div class="panel-header d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <span style="background:#DBEAFE;color:#1D4ED8;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Textual</span>
+          Use Case Themes <span style="font-size:0.75rem;color:#9CA3AF;font-weight:400;margin-left:4px;">AI-grouped by similarity</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span id="cluster-updated" style="font-size:0.72rem;color:#9CA3AF;"></span>
+          <button class="btn btn-sm btn-outline-secondary" style="font-size:0.75rem;padding:2px 10px;" onclick="clusterUseCases()" id="cluster-btn">
+            <i class="bi bi-stars me-1"></i>Re-cluster
+          </button>
+        </div>
+      </div>
+      <div class="panel-body p-0" id="clustered-list">
+        <div class="empty-state"><i class="bi bi-collection"></i>Click Re-cluster to group similar use cases with AI</div>
       </div>
     </div>
   </div>
@@ -412,11 +435,14 @@ async function refreshDashboard() {
     if (!d2.textual_ranked?.length) {
       textualEl.innerHTML = `<div class="empty-state"><i class="bi bi-list-ol"></i>Analyze calls to see ranked use cases</div>`;
     } else {
-      textualEl.innerHTML = `<ol style="margin:0;padding:12px 16px 12px 36px;">` +
-        d2.textual_ranked.map(u => {
-          const callCount = u.call_count > 1 ? `<span style="font-size:0.72rem;color:#9CA3AF;margin-left:6px;">${u.call_count} calls</span>` : '';
-          return `<li style="font-size:0.83rem;padding:6px 0;border-bottom:1px solid #f3f4f6;line-height:1.4;">${u.content}${callCount}</li>`;
-        }).join('') + `</ol>`;
+      textualEl.innerHTML = `<div style="padding:4px 0;">` +
+        d2.textual_ranked.map((u, i) => {
+          const count = u.call_count || 1;
+          return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 16px;border-bottom:1px solid #f3f4f6;">
+            <span style="min-width:28px;height:28px;background:#DBEAFE;color:#1D4ED8;font-weight:700;font-size:0.78rem;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${count}</span>
+            <span style="font-size:0.83rem;line-height:1.4;padding-top:4px;">${u.content}</span>
+          </div>`;
+        }).join('') + `</div>`;
     }
 
     // Cross-product list
@@ -427,15 +453,75 @@ async function refreshDashboard() {
       subtitleEl.textContent = '';
     } else {
       subtitleEl.textContent = `From ${d2.cross_product_call_count} call${d2.cross_product_call_count !== 1 ? 's' : ''} mentioning both products`;
-      crossEl.innerHTML = `<ol style="margin:0;padding:12px 16px 12px 36px;">` +
+      crossEl.innerHTML = `<div style="padding:4px 0;">` +
         d2.cross_product.map(u => {
+          const count = u.call_count || 1;
           const productColor = u.product === 'Textual' ? '#1D4ED8' : '#15803D';
           const productBg = u.product === 'Textual' ? '#DBEAFE' : '#DCFCE7';
-          const badge = `<span style="background:${productBg};color:${productColor};font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;margin-left:6px;">${u.product}</span>`;
-          return `<li style="font-size:0.83rem;padding:6px 0;border-bottom:1px solid #f3f4f6;line-height:1.4;">${u.content}${badge}</li>`;
-        }).join('') + `</ol>`;
+          return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 16px;border-bottom:1px solid #f3f4f6;">
+            <span style="min-width:28px;height:28px;background:#F3F4F6;color:#374151;font-weight:700;font-size:0.78rem;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${count}</span>
+            <span style="font-size:0.83rem;line-height:1.4;padding-top:4px;">${u.content}
+              <span style="background:${productBg};color:${productColor};font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;margin-left:6px;">${u.product}</span>
+            </span>
+          </div>`;
+        }).join('') + `</div>`;
     }
+
+    // Load cached clusters
+    loadCachedClusters();
   } catch(e) { console.error('Failed to load ranked use cases', e); }
+
+  // Always try to load cached clusters on dashboard refresh
+  loadCachedClusters();
+}
+
+function renderClusters(clusters, updatedAt) {
+  const el = document.getElementById('clustered-list');
+  const updEl = document.getElementById('cluster-updated');
+  if (!clusters?.length) {
+    el.innerHTML = `<div class="empty-state"><i class="bi bi-collection"></i>Click Re-cluster to group similar use cases with AI</div>`;
+    return;
+  }
+  if (updatedAt) {
+    const d = new Date(updatedAt);
+    updEl.textContent = `Last updated ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  }
+  el.innerHTML = `<div style="padding:4px 0;">` +
+    clusters.map((c, i) => {
+      const examples = (c.examples || []).slice(0, 3).map(e =>
+        `<div style="font-size:0.75rem;color:#6B7280;margin-top:3px;padding-left:4px;border-left:2px solid #E5E7EB;">${e}</div>`
+      ).join('');
+      return `<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 16px;border-bottom:1px solid #f3f4f6;">
+        <span style="min-width:32px;height:32px;background:#1D4ED8;color:#fff;font-weight:700;font-size:0.85rem;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${c.total_mentions}</span>
+        <div>
+          <div style="font-size:0.88rem;font-weight:600;color:#111827;">${c.theme}</div>
+          ${examples}
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+async function loadCachedClusters() {
+  try {
+    const res = await fetch('/api/insights/cluster-use-cases');
+    const data = await res.json();
+    if (data.clusters?.length) renderClusters(data.clusters, data.updated_at);
+  } catch(e) {}
+}
+
+async function clusterUseCases() {
+  const btn = document.getElementById('cluster-btn');
+  const el = document.getElementById('clustered-list');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Clustering…`;
+  el.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted small">Asking Claude to group similar use cases…</div></div>`;
+  try {
+    const res = await fetch('/api/insights/cluster-use-cases', {method: 'POST'});
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); el.innerHTML = `<div class="empty-state text-danger">${data.error}</div>`; }
+    else renderClusters(data.clusters, data.updated_at);
+  } catch(e) { toast('Clustering failed', 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = `<i class="bi bi-stars me-1"></i>Re-cluster`; }
 }
 
 function setDefaultDates() {
