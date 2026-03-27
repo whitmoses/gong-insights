@@ -50,8 +50,18 @@ def login_required(f):
 BASE_DIR = Path(__file__).parent
 # Use /tmp for database on cloud servers (Railway, etc.) which may have read-only filesystems
 IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("VERCEL"))
-DB_PATH = Path("/tmp/insights.db") if IS_CLOUD else BASE_DIR / "insights.db"
-SETTINGS_PATH = Path("/tmp/settings.json") if IS_CLOUD else BASE_DIR / "settings.json"
+
+# Prefer a persistent data directory (Railway Volume mounted at /data),
+# falling back to /tmp (ephemeral) if no volume is attached yet.
+if IS_CLOUD:
+    _data_dir = Path(os.environ.get("DATA_DIR", "/data"))
+    if not _data_dir.exists():
+        _data_dir = Path("/tmp")
+    DB_PATH = _data_dir / "insights.db"
+    SETTINGS_PATH = _data_dir / "settings.json"
+else:
+    DB_PATH = BASE_DIR / "insights.db"
+    SETTINGS_PATH = BASE_DIR / "settings.json"
 
 # ── Default keyword lists for Tonic product attribution ───────────────────────
 DEFAULT_TEXTUAL_KEYWORDS = [
@@ -160,43 +170,94 @@ def save_settings(data):
 
 
 # ── Database setup ─────────────────────────────────────────────────────────────
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS calls (
-            id TEXT PRIMARY KEY,
-            title TEXT,
-            started TEXT,
-            duration INTEGER,
-            parties TEXT,
-            analyzed INTEGER DEFAULT 0,
-            analyzed_at TEXT
-        )
-    """)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS insights (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            call_id TEXT NOT NULL,
-            call_title TEXT,
-            call_date TEXT,
-            insight_type TEXT NOT NULL,
-            content TEXT NOT NULL,
-            product TEXT NOT NULL,
-            confidence TEXT,
-            raw_quote TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (call_id) REFERENCES calls(id)
-        )
-    """)
-    conn.commit()
-    conn.close()
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+USE_POSTGRES = bool(DATABASE_URL)
 
+if USE_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if USE_POSTGRES:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        return conn
+    else:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+def p(sql):
+    """Convert SQLite ? placeholders to PostgreSQL %s placeholders."""
+    if USE_POSTGRES:
+        return sql.replace("?", "%s")
+    return sql
+
+def scalar(row):
+    """Extract first value from a row regardless of DB driver."""
+    if row is None:
+        return 0
+    if USE_POSTGRES:
+        return list(row.values())[0]
+    return row[0]
+
+def init_db():
+    conn = get_db()
+    c = conn.cursor()
+    if USE_POSTGRES:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS calls (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                started TEXT,
+                duration INTEGER,
+                parties TEXT,
+                analyzed INTEGER DEFAULT 0,
+                analyzed_at TEXT
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS insights (
+                id SERIAL PRIMARY KEY,
+                call_id TEXT NOT NULL,
+                call_title TEXT,
+                call_date TEXT,
+                insight_type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                product TEXT NOT NULL,
+                confidence TEXT,
+                raw_quote TEXT,
+                created_at TEXT DEFAULT to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS')
+            )
+        """)
+    else:
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS calls (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                started TEXT,
+                duration INTEGER,
+                parties TEXT,
+                analyzed INTEGER DEFAULT 0,
+                analyzed_at TEXT
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS insights (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                call_id TEXT NOT NULL,
+                call_title TEXT,
+                call_date TEXT,
+                insight_type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                product TEXT NOT NULL,
+                confidence TEXT,
+                raw_quote TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (call_id) REFERENCES calls(id)
+            )
+        """)
+    conn.commit()
+    conn.close()
 
 
 # ── Gong API helpers ───────────────────────────────────────────────────────────
@@ -503,16 +564,23 @@ def get_calls():
             p.get("name", p.get("emailAddress", "Unknown"))
             for p in call.get("parties", [])
         ])
-        db.execute("""
-            INSERT OR IGNORE INTO calls (id, title, started, duration, parties)
-            VALUES (?, ?, ?, ?, ?)
-        """, (call_id, title, started, duration, parties))
+        if USE_POSTGRES:
+            db.execute(p("""
+                INSERT INTO calls (id, title, started, duration, parties)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO NOTHING
+            """), (call_id, title, started, duration, parties))
+        else:
+            db.execute("""
+                INSERT OR IGNORE INTO calls (id, title, started, duration, parties)
+                VALUES (?, ?, ?, ?, ?)
+            """, (call_id, title, started, duration, parties))
     db.commit()
 
     result = []
     for call in calls:
         call_id = call.get("metaData", {}).get("id", "")
-        row = db.execute("SELECT analyzed, analyzed_at FROM calls WHERE id=?", (call_id,)).fetchone()
+        row = db.execute(p("SELECT analyzed, analyzed_at FROM calls WHERE id=?"), (call_id,)).fetchone()
         analyzed = bool(row["analyzed"]) if row else False
         result.append({
             "id": call_id,
@@ -541,7 +609,7 @@ def analyze_call(call_id):
         return jsonify({"error": f"Missing in .env file: {', '.join(missing)}"}), 400
 
     db = get_db()
-    call_row = db.execute("SELECT * FROM calls WHERE id=?", (call_id,)).fetchone()
+    call_row = db.execute(p("SELECT * FROM calls WHERE id=?"), (call_id,)).fetchone()
 
     try:
         transcript = fetch_call_transcript(settings, call_id)
@@ -554,13 +622,13 @@ def analyze_call(call_id):
         call_title = call_row["title"] if call_row else call_id
         call_date = call_row["started"] if call_row else ""
 
-        db.execute("DELETE FROM insights WHERE call_id=?", (call_id,))
+        db.execute(p("DELETE FROM insights WHERE call_id=?"), (call_id,))
 
         for ins in insights:
-            db.execute("""
+            db.execute(p("""
                 INSERT INTO insights (call_id, call_title, call_date, insight_type, content, product, confidence, raw_quote)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
+            """), (
                 call_id, call_title, call_date,
                 ins.get("type", "unknown"),
                 ins.get("content", ""),
@@ -570,7 +638,7 @@ def analyze_call(call_id):
             ))
 
         db.execute(
-            "UPDATE calls SET analyzed=1, analyzed_at=? WHERE id=?",
+            p("UPDATE calls SET analyzed=1, analyzed_at=? WHERE id=?"),
             (datetime.utcnow().isoformat(), call_id)
         )
         db.commit()
@@ -610,7 +678,7 @@ def get_insights():
         params.append(call_id)
     query += " ORDER BY created_at DESC"
 
-    rows = db.execute(query, params).fetchall()
+    rows = db.execute(p(query), params).fetchall()
     result = [dict(row) for row in rows]
     db.close()
     return jsonify({"insights": result, "total": len(result)})
@@ -620,10 +688,10 @@ def get_insights():
 @login_required
 def insights_summary():
     db = get_db()
-    total = db.execute("SELECT COUNT(*) FROM insights").fetchone()[0]
+    total = scalar(db.execute("SELECT COUNT(*) FROM insights").fetchone())
     by_product = db.execute("SELECT product, COUNT(*) as count FROM insights GROUP BY product").fetchall()
     by_type = db.execute("SELECT insight_type, COUNT(*) as count FROM insights GROUP BY insight_type").fetchall()
-    calls_analyzed = db.execute("SELECT COUNT(*) FROM calls WHERE analyzed=1").fetchone()[0]
+    calls_analyzed = scalar(db.execute("SELECT COUNT(*) FROM calls WHERE analyzed=1").fetchone())
     recent = db.execute("SELECT * FROM insights ORDER BY created_at DESC LIMIT 10").fetchall()
     db.close()
     return jsonify({
@@ -635,11 +703,68 @@ def insights_summary():
     })
 
 
+@app.route("/api/insights/ranked-use-cases", methods=["GET"])
+@login_required
+def ranked_use_cases():
+    """
+    Returns two ranked lists:
+    1. Top Textual use cases ranked by frequency across calls
+    2. Use cases from calls that mention both Textual and Fabricate
+    """
+    db = get_db()
+
+    # ── Textual use cases ranked by frequency ─────────────────────────────────
+    agg_fn = "STRING_AGG(DISTINCT call_title, ', ')" if USE_POSTGRES else "GROUP_CONCAT(DISTINCT call_title)"
+    textual_rows = db.execute(f"""
+        SELECT content, COUNT(DISTINCT call_id) as call_count, COUNT(*) as total_count,
+               {agg_fn} as calls
+        FROM insights
+        WHERE product = 'Textual' AND insight_type = 'use_case'
+        GROUP BY content
+        ORDER BY call_count DESC, total_count DESC
+        LIMIT 25
+    """).fetchall()
+
+    textual_ranked = [dict(r) for r in textual_rows]
+
+    # ── Cross-product: calls with both Textual and Fabricate insights ──────────
+    cross_calls = db.execute("""
+        SELECT DISTINCT call_id FROM insights WHERE product = 'Textual'
+        INTERSECT
+        SELECT DISTINCT call_id FROM insights WHERE product = 'Fabricate'
+    """).fetchall()
+    cross_call_ids = [r["call_id"] for r in cross_calls]
+
+    cross_use_cases = []
+    if cross_call_ids:
+        ph = "," .join(["%s" if USE_POSTGRES else "?"] * len(cross_call_ids))
+        cross_rows = db.execute(f"""
+            SELECT content, COUNT(DISTINCT call_id) as call_count,
+                   {agg_fn} as calls,
+                   product
+            FROM insights
+            WHERE call_id IN ({ph})
+              AND insight_type = 'use_case'
+              AND product IN ('Textual', 'Fabricate')
+            GROUP BY content, product
+            ORDER BY call_count DESC
+            LIMIT 25
+        """, cross_call_ids).fetchall()
+        cross_use_cases = [dict(r) for r in cross_rows]
+
+    db.close()
+    return jsonify({
+        "textual_ranked": textual_ranked,
+        "cross_product": cross_use_cases,
+        "cross_product_call_count": len(cross_call_ids),
+    })
+
+
 @app.route("/api/insights/<int:insight_id>", methods=["DELETE"])
 @login_required
 def delete_insight(insight_id):
     db = get_db()
-    db.execute("DELETE FROM insights WHERE id=?", (insight_id,))
+    db.execute(p("DELETE FROM insights WHERE id=?"), (insight_id,))
     db.commit()
     db.close()
     return jsonify({"status": "ok"})
