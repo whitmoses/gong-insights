@@ -171,16 +171,43 @@ def save_settings(data):
 
 # ── Database setup ─────────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+# psycopg2 requires postgresql:// not postgres:// (Railway uses the latter)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 USE_POSTGRES = bool(DATABASE_URL)
 
 if USE_POSTGRES:
     import psycopg2
     import psycopg2.extras
+    print(f"[DB] Using PostgreSQL (DATABASE_URL is set)")
+else:
+    print(f"[DB] WARNING: No DATABASE_URL found — using SQLite (data will not persist)")
+
+class PGConnection:
+    """Wraps a psycopg2 connection to support conn.execute() like SQLite."""
+    def __init__(self, conn):
+        self._conn = conn
+        self._cursor = conn.cursor()
+
+    def execute(self, sql, params=None):
+        if params is not None:
+            self._cursor.execute(sql, params)
+        else:
+            self._cursor.execute(sql)
+        return self._cursor
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._cursor.close()
+        self._conn.close()
+
 
 def get_db():
     if USE_POSTGRES:
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
-        return conn
+        return PGConnection(conn)
     else:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
