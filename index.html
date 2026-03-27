@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gong Insights — Tonic.ai</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --tonic-purple: #6B3FA0;
+      --tonic-purple-light: #9B6FD0;
+      --tonic-purple-pale: #F3EEFF;
+      --textual-color: #2563EB;
+      --structural-color: #D97706;
+      --fabricate-color: #059669;
+      --general-color: #6B7280;
+      --sidebar-width: 230px;
+      --bg: #F4F5F7;
+      --card-bg: #fff;
+      --border: #E5E7EB;
+      --text-primary: #111827;
+      --text-muted: #6B7280;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: var(--text-primary); }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-width);
+      background: linear-gradient(180deg, #18103A 0%, #1E1545 100%);
+      display: flex; flex-direction: column; z-index: 100;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    }
+    .sidebar-logo { padding: 22px 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .sidebar-logo .brand { color: #fff; font-size: 1.05rem; font-weight: 700; letter-spacing: -0.3px; }
+    .sidebar-logo .sub { color: rgba(255,255,255,0.38); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+    .nav-section { padding: 10px 12px 4px; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.25); font-weight: 600; }
+    .nav-link-side {
+      display: flex; align-items: center; gap: 10px;
+      color: rgba(255,255,255,0.55); padding: 9px 16px;
+      text-decoration: none; font-size: 0.86rem; font-weight: 500;
+      transition: all 0.15s; border-radius: 8px; margin: 1px 8px;
+    }
+    .nav-link-side:hover { color: #fff; background: rgba(255,255,255,0.08); }
+    .nav-link-side.active { color: #fff; background: rgba(155,111,208,0.28); box-shadow: inset 0 0 0 1px rgba(155,111,208,0.3); }
+    .nav-link-side i { font-size: 0.95rem; width: 18px; opacity: 0.9; }
+
+    /* ── Layout ── */
+    .main-content { margin-left: var(--sidebar-width); padding: 28px 32px; min-height: 100vh; }
+    .page-header { margin-bottom: 24px; }
+    .page-header h4 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.3px; margin: 0; }
+    .page-header .subtitle { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Stat Cards ── */
+    .stat-card {
+      background: var(--card-bg); border-radius: 14px;
+      padding: 20px 22px; border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--accent, #E5E7EB); border-radius: 14px 14px 0 0;
+    }
+    .stat-card.accent-purple { --accent: linear-gradient(90deg, #6B3FA0, #9B6FD0); }
+    .stat-card.accent-blue { --accent: linear-gradient(90deg, #2563EB, #60A5FA); }
+    .stat-card.accent-amber { --accent: linear-gradient(90deg, #D97706, #FCD34D); }
+    .stat-card.accent-green { --accent: linear-gradient(90deg, #059669, #34D399); }
+    .stat-card.accent-gray { --accent: linear-gradient(90deg, #6B7280, #D1D5DB); }
+    .stat-number { font-size: 2.2rem; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-icon { position: absolute; top: 18px; right: 18px; font-size: 1.4rem; opacity: 0.12; }
+
+    /* ── Panels ── */
+    .panel { background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+    .panel-header { padding: 14px 20px; border-bottom: 1px solid #F3F4F6; font-weight: 600; font-size: 0.88rem; color: var(--text-primary); display: flex; align-items: center; background: #FAFAFA; }
+    .panel-body { padding: 20px; }
+
+    /* ── Badges ── */
+    .badge-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; }
+    .badge-textual { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+    .badge-structural { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+    .badge-fabricate { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
+    .badge-general { background: #F9FAFB; color: #4B5563; border: 1px solid #E5E7EB; }
+    .badge-use_case { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+    .badge-job_to_be_done { background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; }
+    .badge-pain_point { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
+
+    /* ── Call list ── */
+    .call-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 18px; border-bottom: 1px solid #F3F4F6; transition: background 0.1s; cursor: pointer; }
+    .call-item:last-child { border-bottom: none; }
+    .call-item:hover { background: #FAFAFA; }
+    .call-item.selected { background: #F5F0FF; }
+    .call-title { font-size: 0.875rem; font-weight: 600; color: var(--text-primary); }
+    .call-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 3px; }
+    .analyzed-badge { font-size: 0.68rem; font-weight: 600; background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+
+    /* ── Insight cards ── */
+    .insight-card { border-left: 3px solid #E5E7EB; padding: 14px 16px; margin-bottom: 10px; background: var(--card-bg); border-radius: 0 10px 10px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: box-shadow 0.15s; }
+    .insight-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .insight-card.textual { border-left-color: var(--textual-color); }
+    .insight-card.structural { border-left-color: var(--structural-color); }
+    .insight-card.fabricate { border-left-color: var(--fabricate-color); }
+    .insight-card.general { border-left-color: var(--general-color); }
+    .insight-content { font-size: 0.875rem; color: var(--text-primary); margin-bottom: 8px; line-height: 1.5; font-weight: 500; }
+    .insight-quote { font-size: 0.78rem; color: #6B7280; font-style: italic; background: #F9FAFB; border: 1px solid #F3F4F6; padding: 7px 11px; border-radius: 6px; margin-top: 8px; line-height: 1.5; }
+
+    /* ── Progress ── */
+    .progress { border-radius: 99px; background: #F3F4F6; }
+    .progress-bar-tonic { background: linear-gradient(90deg, var(--tonic-purple), var(--tonic-purple-light)); }
+    .progress-bar { border-radius: 99px; }
+
+    /* ── Filter buttons ── */
+    .filter-btn { font-size: 0.78rem; padding: 5px 14px; border-radius: 99px; font-weight: 500; transition: all 0.15s; }
+    .filter-btn.active { background: var(--tonic-purple); color: #fff; border-color: var(--tonic-purple); box-shadow: 0 2px 6px rgba(107,63,160,0.3); }
+
+    /* ── Misc ── */
+    .page { display: none; }
+    .page.active { display: block; }
+    .empty-state { text-align: center; padding: 52px 24px; color: #9CA3AF; }
+    .empty-state i { font-size: 2.8rem; margin-bottom: 14px; display: block; opacity: 0.5; }
+    .empty-state p { font-size: 0.85rem; margin: 0; }
+    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; }
+    .toast-msg { background: #1E1545; color: #fff; padding: 11px 18px; border-radius: 10px; margin-top: 8px; font-size: 0.84rem; opacity: 0; transition: opacity 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .toast-msg.show { opacity: 1; }
+    .toast-msg.success { border-left: 4px solid #22c55e; }
+    .toast-msg.error { border-left: 4px solid #ef4444; }
+    .cred-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #F3F4F6; }
+    .cred-row:last-child { border-bottom: none; }
+    .cred-label { font-size: 0.85rem; font-weight: 500; }
+    .cred-key { font-size: 0.75rem; color: #9CA3AF; font-family: monospace; }
+    .cred-set { color: #059669; font-size: 0.8rem; font-weight: 600; }
+    .cred-missing { color: #DC2626; font-size: 0.8rem; font-weight: 600; }
+    .btn-primary-tonic { background: linear-gradient(135deg, #6B3FA0, #9B6FD0); color: #fff; border: none; font-weight: 600; box-shadow: 0 2px 8px rgba(107,63,160,0.35); transition: all 0.15s; }
+    .btn-primary-tonic:hover { background: linear-gradient(135deg, #7B4FB0, #AB7FE0); color: #fff; box-shadow: 0 4px 12px rgba(107,63,160,0.4); transform: translateY(-1px); }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">🔍 Gong Insights</div>
+    <div class="sub">Tonic.ai · Use Case Extractor</div>
+  </div>
+  <div style="padding: 12px 0; flex: 1;">
+    <a href="#" class="nav-link-side active" data-page="dashboard"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+    <a href="#" class="nav-link-side" data-page="calls"><i class="bi bi-telephone-fill"></i> Calls</a>
+    <a href="#" class="nav-link-side" data-page="insights"><i class="bi bi-lightbulb-fill"></i> Insights</a>
+    <a href="#" class="nav-link-side" data-page="settings"><i class="bi bi-gear-fill"></i> Settings</a>
+  </div>
+  <div style="padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08);">
+    <div style="font-size: 0.78rem; color: rgba(255,255,255,0.6); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+      <i class="bi bi-person-circle me-1"></i>{{ session.get('user_name', '') }}
+    </div>
+    <a href="/logout" style="display:block; font-size:0.78rem; color:rgba(255,255,255,0.4); text-decoration:none; margin-bottom:8px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+      <i class="bi bi-box-arrow-left me-1"></i>Sign Out
+    </a>
+    <div style="font-size: 0.72rem; color: rgba(255,255,255,0.3);">Powered by Claude AI</div>
+  </div>
+</nav>
+
+<div class="main-content">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="d-flex align-items-center justify-content-between page-header">
+      <div>
+        <h4>Dashboard</h4>
+        <div class="subtitle">Customer insight intelligence from Gong calls</div>
+      </div>
+      <button class="btn btn-sm btn-primary-tonic" onclick="refreshDashboard()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+      </button>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-2">
+        <div class="stat-card accent-blue">
+          <i class="bi bi-lightbulb stat-icon"></i>
+          <div class="stat-number" style="color:var(--textual-color)" id="stat-total">—</div>
+          <div class="stat-label">Total Insights</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="stat-card accent-purple">
+          <i class="bi bi-telephone stat-icon"></i>
+          <div class="stat-number" style="color:var(--tonic-purple)" id="stat-calls">—</div>
+          <div class="stat-label">Calls Analyzed</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card accent-blue">
+          <i class="bi bi-file-text stat-icon"></i>
+          <div class="stat-number" style="color:var(--textual-color)" id="stat-textual">—</div>
+          <div class="stat-label">Textual Insights</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="stat-card accent-amber">
+          <i class="bi bi-database stat-icon"></i>
+          <div class="stat-number" style="color:var(--structural-color)" id="stat-structural">—</div>
+          <div class="stat-label">Structural Insights</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card accent-green">
+          <i class="bi bi-cpu stat-icon"></i>
+          <div class="stat-number" style="color:var(--fabricate-color)" id="stat-fabricate">—</div>
+          <div class="stat-label">Fabricate Insights</div>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-5">
+        <div class="panel h-100">
+          <div class="panel-header"><i class="bi bi-bar-chart-fill me-2" style="color:var(--tonic-purple);opacity:0.7;"></i>Insights by Type</div>
+          <div class="panel-body" id="type-breakdown"><div class="empty-state"><i class="bi bi-bar-chart"></i><p>No data yet</p></div></div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="panel h-100">
+          <div class="panel-header"><i class="bi bi-pie-chart-fill me-2" style="color:var(--tonic-purple);opacity:0.7;"></i>Product Distribution</div>
+          <div class="panel-body" id="product-breakdown"><div class="empty-state"><i class="bi bi-pie-chart"></i><p>No data yet</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel mb-0">
+      <div class="panel-header justify-content-between">
+        <span><i class="bi bi-clock-history me-2" style="color:var(--tonic-purple);opacity:0.7;"></i>Recent Insights</span>
+        <a href="#" style="font-size:0.78rem;color:var(--tonic-purple);font-weight:500;" onclick="navTo('insights')">View all →</a>
+      </div>
+      <div class="panel-body p-0" id="recent-insights"><div class="empty-state"><i class="bi bi-lightbulb"></i><p>Analyze some calls to see insights here</p></div></div>
+    </div>
+
+    <!-- Ranked Use Case Lists -->
+    <div class="row g-3 mt-1">
+      <div class="col-md-6">
+        <div class="panel h-100">
+          <div class="panel-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <span style="background:#DBEAFE;color:#1D4ED8;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Textual</span>
+              Top Use Cases <span style="font-size:0.75rem;color:#9CA3AF;font-weight:400;margin-left:4px;">by frequency</span>
+            </div>
+          </div>
+          <div class="panel-body p-0" id="textual-ranked-list">
+            <div class="empty-state"><i class="bi bi-list-ol"></i>Analyze calls to see ranked use cases</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="panel h-100">
+          <div class="panel-header d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <span style="background:#DBEAFE;color:#1D4ED8;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Textual</span>
+              <span style="color:#9CA3AF;font-size:0.8rem;">+</span>
+              <span style="background:#DCFCE7;color:#15803D;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Fabricate</span>
+              Cross-Product Use Cases
+            </div>
+          </div>
+          <div style="font-size:0.75rem;color:#9CA3AF;padding:6px 16px 0;" id="cross-product-subtitle"></div>
+          <div class="panel-body p-0" id="cross-product-list">
+            <div class="empty-state"><i class="bi bi-intersect"></i>Use cases spanning both products will appear here</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Clustered Use Cases -->
+    <div class="panel mt-3">
+      <div class="panel-header d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <span style="background:#DBEAFE;color:#1D4ED8;font-weight:600;font-size:0.72rem;padding:2px 8px;border-radius:4px;">Textual</span>
+          Use Case Themes <span style="font-size:0.75rem;color:#9CA3AF;font-weight:400;margin-left:4px;">AI-grouped by similarity</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span id="cluster-updated" style="font-size:0.72rem;color:#9CA3AF;"></span>
+          <button class="btn btn-sm btn-outline-secondary" style="font-size:0.75rem;padding:2px 10px;" onclick="clusterUseCases()" id="cluster-btn">
+            <i class="bi bi-stars me-1"></i>Re-cluster
+          </button>
+        </div>
+      </div>
+      <div class="panel-body p-0" id="clustered-list">
+        <div class="empty-state"><i class="bi bi-collection"></i>Click Re-cluster to group similar use cases with AI</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALLS -->
+  <div id="page-calls" class="page">
+    <div class="d-flex align-items-center justify-content-between page-header">
+      <div><h4>Gong Calls</h4><div class="subtitle">Fetch and analyze customer calls</div></div>
+    </div>
+    <div class="panel mb-3">
+      <div class="panel-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-auto"><label class="form-label small mb-1">From</label><input type="date" id="calls-from" class="form-control form-control-sm" style="width:145px;"/></div>
+          <div class="col-auto"><label class="form-label small mb-1">To</label><input type="date" id="calls-to" class="form-control form-control-sm" style="width:145px;"/></div>
+          <div class="col-auto"><button class="btn btn-sm btn-outline-secondary" onclick="fetchCalls()"><i class="bi bi-cloud-download me-1"></i>Fetch from Gong</button></div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-primary-tonic" onclick="analyzeSelected()" id="analyze-btn" disabled>
+              <i class="bi bi-cpu me-1"></i>Analyze Selected (<span id="selected-count">0</span>)
+            </button>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-outline-primary" onclick="selectAll()">Select All</button>
+            <button class="btn btn-sm btn-outline-secondary ms-1" onclick="selectNone()">None</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="analyze-progress" style="display:none;" class="mb-3">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        <span id="analyze-progress-text" style="font-size:0.82rem;">Analyzing...</span>
+      </div>
+      <div class="progress" style="height:6px;"><div class="progress-bar progress-bar-tonic" id="analyze-progress-bar" style="width:0%"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header d-flex justify-content-between">
+        <span>Calls <span id="calls-count" class="text-muted fw-normal" style="font-size:0.8rem;"></span></span>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" id="show-analyzed" onchange="filterCalls()">
+          <label class="form-check-label small" for="show-analyzed">Show analyzed only</label>
+        </div>
+      </div>
+      <div id="calls-list" style="max-height:520px;overflow-y:auto;"><div class="empty-state"><i class="bi bi-telephone"></i>Click "Fetch from Gong" to load calls</div></div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div id="page-insights" class="page">
+    <div class="d-flex align-items-center justify-content-between page-header">
+      <div><h4>All Insights</h4><div class="subtitle">Browse, filter, and export extracted insights</div></div>
+      <button class="btn btn-sm btn-primary-tonic" onclick="exportInsights()"><i class="bi bi-download me-1"></i>Export CSV</button>
+    </div>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+      <span class="text-muted small me-1 align-self-center">Product:</span>
+      <button class="btn btn-outline-secondary filter-btn active" data-filter-product="" onclick="setFilter('product','')">All</button>
+      <button class="btn btn-outline-primary filter-btn" data-filter-product="Textual" onclick="setFilter('product','Textual')">Textual</button>
+      <button class="btn btn-outline-warning filter-btn" data-filter-product="Structural" onclick="setFilter('product','Structural')">Structural</button>
+      <button class="btn btn-outline-success filter-btn" data-filter-product="Fabricate" onclick="setFilter('product','Fabricate')">Fabricate</button>
+      <button class="btn btn-outline-secondary filter-btn" data-filter-product="General" onclick="setFilter('product','General')">General</button>
+      <span class="text-muted small ms-3 me-1 align-self-center">Type:</span>
+      <button class="btn btn-outline-secondary filter-btn active" data-filter-type="" onclick="setFilter('type','')">All</button>
+      <button class="btn btn-outline-warning filter-btn" data-filter-type="use_case" onclick="setFilter('type','use_case')">Use Cases</button>
+      <button class="btn btn-outline-info filter-btn" data-filter-type="job_to_be_done" onclick="setFilter('type','job_to_be_done')">Jobs to be Done</button>
+      <button class="btn btn-outline-danger filter-btn" data-filter-type="pain_point" onclick="setFilter('type','pain_point')">Pain Points</button>
+    </div>
+    <div class="mb-3"><input type="text" id="insights-search" class="form-control form-control-sm" placeholder="Search insights..." oninput="renderInsights()" style="max-width:340px;"/></div>
+    <div id="insights-list"><div class="empty-state"><i class="bi bi-lightbulb"></i>No insights yet — analyze some calls first</div></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="page-settings" class="page">
+    <div class="page-header">
+      <h4>Settings</h4>
+      <div class="subtitle">API credentials and product keyword configuration</div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-6">
+
+        <!-- Credentials -->
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-shield-lock me-2"></i>API Credentials</div>
+          <div class="panel-body">
+            <div class="alert alert-info py-2 px-3 mb-3" style="font-size:0.82rem;">
+              <i class="bi bi-info-circle me-1"></i>
+              Your credentials are saved securely on your computer and are never shared or sent anywhere except the respective APIs.
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Gong Access Key</label>
+              <input type="password" id="s-gong-key" class="form-control form-control-sm" placeholder="Enter your Gong access key"/>
+              <div class="form-text">Find this in Gong → Company Settings → API → Access Keys</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Gong Access Secret</label>
+              <input type="password" id="s-gong-secret" class="form-control form-control-sm" placeholder="Enter your Gong access secret"/>
+            </div>
+            <div class="mb-0">
+              <label class="form-label small fw-semibold">Anthropic API Key (for Claude AI)</label>
+              <input type="password" id="s-claude-key" class="form-control form-control-sm" placeholder="sk-ant-..."/>
+              <div class="form-text">Get yours at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys</div>
+            </div>
+            <div id="cred-status" class="mt-3 pt-3" style="border-top:1px solid #F3F4F6;"></div>
+          </div>
+        </div>
+
+        <!-- General config -->
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-sliders me-2"></i>General Config</div>
+          <div class="panel-body">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Gong Base URL</label>
+              <input type="text" id="s-gong-url" class="form-control form-control-sm" placeholder="https://api.gong.io"/>
+            </div>
+            <div>
+              <label class="form-label small fw-semibold">Default lookback (days)</label>
+              <input type="number" id="s-lookback" class="form-control form-control-sm" style="width:90px;" min="1" max="365"/>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="col-lg-6">
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-tags me-2" style="color:#0D6EFD;"></i>Textual Keywords</div>
+          <div class="panel-body">
+            <textarea id="s-textual-kw" class="form-control form-control-sm" rows="6" style="font-size:0.78rem;font-family:monospace;"></textarea>
+            <div class="form-text">One keyword per line. Used to attribute insights to Tonic Textual.</div>
+          </div>
+        </div>
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-tags me-2" style="color:#D97706;"></i>Structural Keywords</div>
+          <div class="panel-body">
+            <textarea id="s-structural-kw" class="form-control form-control-sm" rows="6" style="font-size:0.78rem;font-family:monospace;"></textarea>
+            <div class="form-text">One keyword per line. Used to attribute insights to Tonic Structural.</div>
+          </div>
+        </div>
+        <div class="panel mb-3">
+          <div class="panel-header"><i class="bi bi-tags me-2" style="color:#198754;"></i>Fabricate Keywords</div>
+          <div class="panel-body">
+            <textarea id="s-fabricate-kw" class="form-control form-control-sm" rows="6" style="font-size:0.78rem;font-family:monospace;"></textarea>
+            <div class="form-text">One keyword per line. Used to attribute insights to Tonic Fabricate.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-2">
+      <button class="btn" style="background:var(--tonic-purple);color:#fff;" onclick="saveSettings()">
+        <i class="bi bi-check-circle me-1"></i>Save Settings
+      </button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div id="toast-container"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+let allCalls = [], allInsights = [], selectedCallIds = new Set(), filters = { product: '', type: '' };
+
+function navTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link-side').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  if (page === 'dashboard') refreshDashboard();
+  if (page === 'insights') loadInsights();
+  if (page === 'settings') loadSettings();
+}
+document.querySelectorAll('.nav-link-side').forEach(a => a.addEventListener('click', e => { e.preventDefault(); navTo(a.dataset.page); }));
+
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast-msg ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.classList.add('show'), 50);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3500);
+}
+
+async function refreshDashboard() {
+  try {
+    const res = await fetch('/api/insights/summary');
+    const data = await res.json();
+    document.getElementById('stat-total').textContent = data.total_insights ?? 0;
+    document.getElementById('stat-calls').textContent = data.calls_analyzed ?? 0;
+    const textualCount = (data.by_product || []).find(p => p.product === 'Textual')?.count ?? 0;
+    const structuralCount = (data.by_product || []).find(p => p.product === 'Structural')?.count ?? 0;
+    const fabricateCount = (data.by_product || []).find(p => p.product === 'Fabricate')?.count ?? 0;
+    document.getElementById('stat-textual').textContent = textualCount;
+    document.getElementById('stat-structural').textContent = structuralCount;
+    document.getElementById('stat-fabricate').textContent = fabricateCount;
+
+    const typeEl = document.getElementById('type-breakdown');
+    if (!data.by_type?.length) {
+      typeEl.innerHTML = `<div class="empty-state"><i class="bi bi-bar-chart"></i>No data yet</div>`;
+    } else {
+      const total = data.total_insights || 1;
+      typeEl.innerHTML = data.by_type.map(t => {
+        const pct = Math.round((t.count / total) * 100);
+        const label = { use_case: 'Use Cases', job_to_be_done: 'Jobs to be Done', pain_point: 'Pain Points' }[t.insight_type] || t.insight_type;
+        const color = { use_case: '#F59E0B', job_to_be_done: '#3B82F6', pain_point: '#EF4444' }[t.insight_type] || '#9CA3AF';
+        return `<div class="mb-3"><div class="d-flex justify-content-between mb-1"><span style="font-size:0.82rem;">${label}</span><span style="font-size:0.82rem;color:#6B7280;">${t.count} (${pct}%)</span></div><div class="progress" style="height:8px;"><div class="progress-bar" style="width:${pct}%;background:${color};border-radius:99px;"></div></div></div>`;
+      }).join('');
+    }
+
+    const prodEl = document.getElementById('product-breakdown');
+    if (!data.by_product?.length) {
+      prodEl.innerHTML = `<div class="empty-state"><i class="bi bi-pie-chart"></i>No data yet</div>`;
+    } else {
+      const total = data.total_insights || 1;
+      prodEl.innerHTML = data.by_product.map(p => {
+        const pct = Math.round((p.count / total) * 100);
+        const color = { Textual: '#0D6EFD', Structural: '#D97706', Fabricate: '#198754', General: '#9CA3AF' }[p.product] || '#9CA3AF';
+        return `<div class="mb-3"><div class="d-flex justify-content-between mb-1"><span style="font-size:0.82rem;font-weight:500;">${p.product}</span><span style="font-size:0.82rem;color:#6B7280;">${p.count} (${pct}%)</span></div><div class="progress" style="height:10px;"><div class="progress-bar" style="width:${pct}%;background:${color};border-radius:99px;"></div></div></div>`;
+      }).join('');
+    }
+
+    const recentEl = document.getElementById('recent-insights');
+    if (!data.recent_insights?.length) {
+      recentEl.innerHTML = `<div class="empty-state"><i class="bi bi-lightbulb"></i>Analyze some calls to see insights here</div>`;
+    } else {
+      recentEl.innerHTML = data.recent_insights.map(i => insightCardHTML(i)).join('');
+    }
+  } catch(e) { toast('Failed to load dashboard', 'error'); }
+
+  // Load ranked use case lists
+  try {
+    const r2 = await fetch('/api/insights/ranked-use-cases');
+    const d2 = await r2.json();
+
+    // Textual ranked list
+    const textualEl = document.getElementById('textual-ranked-list');
+    if (!d2.textual_ranked?.length) {
+      textualEl.innerHTML = `<div class="empty-state"><i class="bi bi-list-ol"></i>Analyze calls to see ranked use cases</div>`;
+    } else {
+      textualEl.innerHTML = `<div style="padding:4px 0;">` +
+        d2.textual_ranked.map((u, i) => {
+          const count = u.call_count || 1;
+          return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 16px;border-bottom:1px solid #f3f4f6;">
+            <span style="min-width:28px;height:28px;background:#DBEAFE;color:#1D4ED8;font-weight:700;font-size:0.78rem;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${count}</span>
+            <span style="font-size:0.83rem;line-height:1.4;padding-top:4px;">${u.content}</span>
+          </div>`;
+        }).join('') + `</div>`;
+    }
+
+    // Cross-product list
+    const crossEl = document.getElementById('cross-product-list');
+    const subtitleEl = document.getElementById('cross-product-subtitle');
+    if (!d2.cross_product?.length) {
+      crossEl.innerHTML = `<div class="empty-state"><i class="bi bi-intersect"></i>Use cases spanning both products will appear here</div>`;
+      subtitleEl.textContent = '';
+    } else {
+      subtitleEl.textContent = `From ${d2.cross_product_call_count} call${d2.cross_product_call_count !== 1 ? 's' : ''} mentioning both products`;
+      crossEl.innerHTML = `<div style="padding:4px 0;">` +
+        d2.cross_product.map(u => {
+          const count = u.call_count || 1;
+          const productColor = u.product === 'Textual' ? '#1D4ED8' : '#15803D';
+          const productBg = u.product === 'Textual' ? '#DBEAFE' : '#DCFCE7';
+          return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 16px;border-bottom:1px solid #f3f4f6;">
+            <span style="min-width:28px;height:28px;background:#F3F4F6;color:#374151;font-weight:700;font-size:0.78rem;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${count}</span>
+            <span style="font-size:0.83rem;line-height:1.4;padding-top:4px;">${u.content}
+              <span style="background:${productBg};color:${productColor};font-size:0.68rem;font-weight:600;padding:1px 6px;border-radius:3px;margin-left:6px;">${u.product}</span>
+            </span>
+          </div>`;
+        }).join('') + `</div>`;
+    }
+
+    // Load cached clusters
+    loadCachedClusters();
+  } catch(e) { console.error('Failed to load ranked use cases', e); }
+
+  // Always try to load cached clusters on dashboard refresh
+  loadCachedClusters();
+}
+
+function renderClusters(clusters, updatedAt) {
+  const el = document.getElementById('clustered-list');
+  const updEl = document.getElementById('cluster-updated');
+  if (!clusters?.length) {
+    el.innerHTML = `<div class="empty-state"><i class="bi bi-collection"></i>Click Re-cluster to group similar use cases with AI</div>`;
+    return;
+  }
+  if (updatedAt) {
+    const d = new Date(updatedAt);
+    updEl.textContent = `Last updated ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  }
+  el.innerHTML = `<div style="padding:4px 0;">` +
+    clusters.map((c, i) => {
+      const examples = (c.examples || []).slice(0, 3).map(e =>
+        `<div style="font-size:0.75rem;color:#6B7280;margin-top:3px;padding-left:4px;border-left:2px solid #E5E7EB;">${e}</div>`
+      ).join('');
+      return `<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 16px;border-bottom:1px solid #f3f4f6;">
+        <span style="min-width:32px;height:32px;background:#1D4ED8;color:#fff;font-weight:700;font-size:0.85rem;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${c.total_mentions}</span>
+        <div>
+          <div style="font-size:0.88rem;font-weight:600;color:#111827;">${c.theme}</div>
+          ${examples}
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+async function loadCachedClusters() {
+  try {
+    const res = await fetch('/api/insights/cluster-use-cases');
+    const data = await res.json();
+    if (data.clusters?.length) renderClusters(data.clusters, data.updated_at);
+  } catch(e) {}
+}
+
+async function clusterUseCases() {
+  const btn = document.getElementById('cluster-btn');
+  const el = document.getElementById('clustered-list');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Clustering…`;
+  el.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted small">Asking Claude to group similar use cases…</div></div>`;
+  try {
+    const res = await fetch('/api/insights/cluster-use-cases', {method: 'POST'});
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); el.innerHTML = `<div class="empty-state text-danger">${data.error}</div>`; }
+    else renderClusters(data.clusters, data.updated_at);
+  } catch(e) { toast('Clustering failed', 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = `<i class="bi bi-stars me-1"></i>Re-cluster`; }
+}
+
+function setDefaultDates() {
+  const today = new Date(), past = new Date();
+  past.setDate(today.getDate() - 30);
+  document.getElementById('calls-to').value = today.toISOString().split('T')[0];
+  document.getElementById('calls-from').value = past.toISOString().split('T')[0];
+}
+
+async function fetchCalls() {
+  const from = document.getElementById('calls-from').value;
+  const to = document.getElementById('calls-to').value;
+  const listEl = document.getElementById('calls-list');
+  listEl.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted small">Fetching calls from Gong...</div></div>`;
+  try {
+    let url = '/api/calls';
+    const params = new URLSearchParams();
+    if (from) params.append('from_date', from + 'T00:00:00Z');
+    if (to) params.append('to_date', to + 'T23:59:59Z');
+    if ([...params].length) url += '?' + params;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    allCalls = data.calls || [];
+    renderCallList();
+    toast(`Loaded ${allCalls.length} calls`);
+  } catch(e) {
+    listEl.innerHTML = `<div class="empty-state text-danger"><i class="bi bi-exclamation-circle"></i>${e.message}</div>`;
+    toast(e.message, 'error');
+  }
+}
+
+function filterCalls() { renderCallList(); }
+
+function renderCallList() {
+  const listEl = document.getElementById('calls-list');
+  const showAnalyzed = document.getElementById('show-analyzed').checked;
+  let calls = showAnalyzed ? allCalls.filter(c => c.analyzed) : allCalls;
+  document.getElementById('calls-count').textContent = `(${calls.length})`;
+  if (!calls.length) {
+    listEl.innerHTML = `<div class="empty-state"><i class="bi bi-telephone"></i>${allCalls.length ? 'No analyzed calls' : 'Click "Fetch from Gong" to load calls'}</div>`;
+    return;
+  }
+  listEl.innerHTML = calls.map(c => {
+    const selected = selectedCallIds.has(c.id);
+    const date = c.started ? new Date(c.started).toLocaleDateString() : '';
+    const dur = c.duration ? Math.round(c.duration / 60) + ' min' : '';
+    const parties = (c.parties || []).filter(Boolean).join(', ');
+    return `<div class="call-item ${selected ? 'selected' : ''}" onclick="toggleCall('${c.id}', this)">
+      <input type="checkbox" class="call-checkbox" ${selected ? 'checked' : ''} onclick="event.stopPropagation();toggleCall('${c.id}', this.closest('.call-item'))"/>
+      <div style="flex:1;min-width:0;"><div class="call-title">${c.title || 'Untitled Call'}</div><div class="call-meta">${[date,dur,parties].filter(Boolean).join(' · ')}</div></div>
+      ${c.analyzed ? `<span class="analyzed-badge"><i class="bi bi-check-circle-fill me-1"></i>Analyzed</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleCall(id, el) {
+  if (selectedCallIds.has(id)) { selectedCallIds.delete(id); el.classList.remove('selected'); el.querySelector('input').checked = false; }
+  else { selectedCallIds.add(id); el.classList.add('selected'); el.querySelector('input').checked = true; }
+  updateAnalyzeBtn();
+}
+function updateAnalyzeBtn() {
+  const n = selectedCallIds.size;
+  document.getElementById('selected-count').textContent = n;
+  document.getElementById('analyze-btn').disabled = n === 0;
+}
+function selectAll() { allCalls.forEach(c => selectedCallIds.add(c.id)); renderCallList(); updateAnalyzeBtn(); }
+function selectNone() { selectedCallIds.clear(); renderCallList(); updateAnalyzeBtn(); }
+
+async function analyzeSelected() {
+  const ids = [...selectedCallIds];
+  if (!ids.length) return;
+  const progressEl = document.getElementById('analyze-progress');
+  const progressBar = document.getElementById('analyze-progress-bar');
+  const progressText = document.getElementById('analyze-progress-text');
+  progressEl.style.display = 'block';
+  document.getElementById('analyze-btn').disabled = true;
+  let done = 0;
+  for (const id of ids) {
+    progressText.textContent = `Analyzing call ${done + 1} of ${ids.length}...`;
+    progressBar.style.width = (done / ids.length * 100) + '%';
+    try {
+      const res = await fetch(`/api/analyze/${id}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.error) toast(`Error: ${data.error}`, 'error');
+      else {
+        toast(`Extracted ${data.insights_extracted} insights`);
+        const call = allCalls.find(c => c.id === id);
+        if (call) call.analyzed = true;
+      }
+    } catch(e) { toast(`Failed: ${e.message}`, 'error'); }
+    done++;
+  }
+  progressBar.style.width = '100%';
+  progressText.textContent = `Done! Analyzed ${done} calls.`;
+  setTimeout(() => { progressEl.style.display = 'none'; }, 3000);
+  document.getElementById('analyze-btn').disabled = false;
+  renderCallList();
+}
+
+async function loadInsights() {
+  try {
+    let url = '/api/insights';
+    const params = new URLSearchParams();
+    if (filters.product) params.append('product', filters.product);
+    if (filters.type) params.append('type', filters.type);
+    if ([...params].length) url += '?' + params;
+    const res = await fetch(url);
+    const data = await res.json();
+    allInsights = data.insights || [];
+    renderInsights();
+  } catch(e) { toast('Failed to load insights', 'error'); }
+}
+
+function setFilter(dim, val) {
+  filters[dim] = val;
+  document.querySelectorAll(`[data-filter-${dim}]`).forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-filter-${dim}="${val}"]`).classList.add('active');
+  loadInsights();
+}
+
+function renderInsights() {
+  const search = document.getElementById('insights-search').value.toLowerCase();
+  const list = document.getElementById('insights-list');
+  let items = allInsights;
+  if (search) items = items.filter(i => i.content.toLowerCase().includes(search) || (i.raw_quote||'').toLowerCase().includes(search) || (i.call_title||'').toLowerCase().includes(search));
+  if (!items.length) { list.innerHTML = `<div class="empty-state"><i class="bi bi-lightbulb"></i>No insights found</div>`; return; }
+  list.innerHTML = items.map(i => insightCardHTML(i, true)).join('');
+}
+
+function insightCardHTML(i, showDelete = false) {
+  const productClass = (i.product || 'general').toLowerCase();
+  const typeLabel = { use_case: 'Use Case', job_to_be_done: 'Job to be Done', pain_point: 'Pain Point' }[i.insight_type] || i.insight_type;
+  const confColor = { high: '#22c55e', medium: '#F59E0B', low: '#9CA3AF' }[i.confidence] || '#9CA3AF';
+  const date = i.call_date ? new Date(i.call_date).toLocaleDateString() : '';
+  return `<div class="insight-card ${productClass}">
+    <div class="d-flex gap-2 align-items-start mb-1 flex-wrap">
+      <span class="badge badge-${productClass} rounded-pill">${i.product || 'General'}</span>
+      <span class="badge badge-${i.insight_type} rounded-pill">${typeLabel}</span>
+      <span style="font-size:0.7rem;color:${confColor};margin-left:auto;"><i class="bi bi-circle-fill" style="font-size:0.55rem;"></i> ${i.confidence||''} confidence</span>
+      ${showDelete ? `<button class="btn btn-link btn-sm p-0 text-danger ms-1" style="font-size:0.75rem;" onclick="deleteInsight(${i.id})"><i class="bi bi-trash3"></i></button>` : ''}
+    </div>
+    <div class="insight-content">${i.content}</div>
+    ${i.raw_quote ? `<div class="insight-quote">"${i.raw_quote}"</div>` : ''}
+    ${i.call_title ? `<div style="font-size:0.73rem;color:#9CA3AF;margin-top:6px;"><i class="bi bi-telephone me-1"></i>${i.call_title}${date ? ' · '+date : ''}</div>` : ''}
+  </div>`;
+}
+
+async function deleteInsight(id) {
+  if (!confirm('Delete this insight?')) return;
+  await fetch(`/api/insights/${id}`, { method: 'DELETE' });
+  toast('Insight deleted');
+  loadInsights();
+}
+
+function exportInsights() {
+  if (!allInsights.length) { toast('No insights to export', 'error'); return; }
+  const header = ['id','call_id','call_title','call_date','insight_type','content','product','confidence','raw_quote','created_at'];
+  const rows = allInsights.map(i => header.map(k => `"${(i[k]||'').toString().replace(/"/g,'""')}"`).join(','));
+  const csv = [header.join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = `tonic_insights_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  toast('Exported to CSV');
+}
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const s = await res.json();
+
+    // Show masked values in credential fields if already set
+    document.getElementById('s-gong-key').placeholder = s.gong_access_key_set ? s.gong_access_key : 'Enter your Gong access key';
+    document.getElementById('s-gong-secret').placeholder = s.gong_access_secret_set ? s.gong_access_secret : 'Enter your Gong access secret';
+    document.getElementById('s-claude-key').placeholder = s.anthropic_api_key_set ? s.anthropic_api_key : 'sk-ant-...';
+
+    // Show status indicators
+    const credEl = document.getElementById('cred-status');
+    const creds = [
+      { label: 'Gong Access Key', set: s.gong_access_key_set },
+      { label: 'Gong Access Secret', set: s.gong_access_secret_set },
+      { label: 'Anthropic API Key', set: s.anthropic_api_key_set },
+    ];
+    credEl.innerHTML = creds.map(c => `
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span style="font-size:0.8rem;color:#6B7280;">${c.label}</span>
+        ${c.set
+          ? `<span style="font-size:0.78rem;color:#22c55e;"><i class="bi bi-check-circle-fill me-1"></i>Saved</span>`
+          : `<span style="font-size:0.78rem;color:#9CA3AF;"><i class="bi bi-circle me-1"></i>Not set</span>`}
+      </div>`).join('');
+
+    document.getElementById('s-gong-url').value = s.gong_base_url || 'https://api.gong.io';
+    document.getElementById('s-lookback').value = s.lookback_days || 30;
+    document.getElementById('s-textual-kw').value = (s.textual_keywords || []).join('\n');
+    document.getElementById('s-structural-kw').value = (s.structural_keywords || []).join('\n');
+    document.getElementById('s-fabricate-kw').value = (s.fabricate_keywords || []).join('\n');
+  } catch(e) { toast('Failed to load settings', 'error'); }
+}
+
+async function saveSettings() {
+  const payload = {
+    gong_base_url: document.getElementById('s-gong-url').value.trim() || 'https://api.gong.io',
+    lookback_days: parseInt(document.getElementById('s-lookback').value) || 30,
+    textual_keywords: document.getElementById('s-textual-kw').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    structural_keywords: document.getElementById('s-structural-kw').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    fabricate_keywords: document.getElementById('s-fabricate-kw').value.split('\n').map(s=>s.trim()).filter(Boolean),
+  };
+  // Only include credentials if the user actually typed something
+  const gongKey = document.getElementById('s-gong-key').value.trim();
+  const gongSecret = document.getElementById('s-gong-secret').value.trim();
+  const claudeKey = document.getElementById('s-claude-key').value.trim();
+  if (gongKey) payload.gong_access_key = gongKey;
+  if (gongSecret) payload.gong_access_secret = gongSecret;
+  if (claudeKey) payload.anthropic_api_key = claudeKey;
+
+  try {
+    const res = await fetch('/api/settings', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      toast('Settings saved!');
+      // Clear the credential fields and reload to show masked values
+      document.getElementById('s-gong-key').value = '';
+      document.getElementById('s-gong-secret').value = '';
+      document.getElementById('s-claude-key').value = '';
+      loadSettings();
+    } else toast('Error saving', 'error');
+  } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+setDefaultDates();
+refreshDashboard();
+</script>
+</body>
+</html>
