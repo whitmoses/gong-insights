@@ -228,8 +228,15 @@ def scalar(row):
     return row[0]
 
 def init_db():
-    conn = get_db()
-    c = conn.cursor()
+    # Use raw connections for init (PGConnection wrapper not needed here)
+    if USE_POSTGRES:
+        raw = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        c = raw.cursor()
+    else:
+        raw = sqlite3.connect(DB_PATH)
+        raw.row_factory = sqlite3.Row
+        c = raw.cursor()
+
     if USE_POSTGRES:
         c.execute("""
             CREATE TABLE IF NOT EXISTS calls (
@@ -299,8 +306,8 @@ def init_db():
             updated_at TEXT
         )
     """)
-    conn.commit()
-    conn.close()
+    raw.commit()
+    raw.close()
 
 
 # ── Gong API helpers ───────────────────────────────────────────────────────────
